@@ -1,80 +1,89 @@
-# <img src="https://github.com/user-attachments/assets/e5487d3e-aadb-466d-bd2b-cfba5476d3db" alt="" width="40" align="top"> Clauddy
+# Clauddy Dual
 
-A pixel-art desktop pet that keeps an eye on your Claude Code usage: the real session and weekly % from your account, the tokens from your local logs, and a pet that works, sleeps and catches fire along with it. It can follow Codex and Cursor too, and you can dress it as a wizard, Santa or a gingerbread cookie.
+**Two assistants. Four limits. One glance.**
+
+Stop interrupting your work to check whether Claude Code or Codex is about to run out. Clauddy Dual gives both a permanent spot on your Mac: live usage readings, reset countdowns, and two tiny companions that react as you work.
 
 <p align="center">
-  <a href="#running">📚 Get started</a> ·
-  <a href="docs/design/02-features.md">✨ Features</a> ·
-  <a href="docs/design/01-architecture.md">🏗️ Architecture</a> ·
-  <a href="docs/design/03-setup.md">⚙️ Setup</a> ·
-  <a href="docs/decisions/">🧭 Decisions</a>
+  <img src="native/tests/snapshots/compact-codex.png" width="690" alt="Clauddy Dual floating dashboard: orange Claude and mint-green Codex pets beside their 5-hour and weekly usage bars and reset timers">
+</p>
+<p align="center"><sub>App screenshot with illustrative test readings—not a live account.</sub></p>
+
+## Know your limits. Keep your momentum.
+
+You have enough to think about when you're building with AI. Tracking two different rate-limit schedules shouldn't be another job.
+
+Clauddy Dual shows you **what you've used and when it resets**, without opening a menu, switching a tab, or breaking concentration.
+
+| What matters | Claude Code | Codex |
+| --- | --- | --- |
+| Session / 5-hour usage | Percentage used + reset countdown | Percentage used + reset countdown |
+| Weekly usage | Percentage used + reset countdown | Percentage used + reset countdown |
+| On-screen character | Original orange Clauddy | Original mint-green robot companion |
+| Activity | Its own working, sleeping, and limit moods | Its own working, resting, and limit moods |
+
+**No guesswork:** unavailable or expired readings appear as unavailable, never as a fake 0%. Percentages show **usage consumed**, not percentage remaining.
+
+## Two characters. Two independent moods.
+
+The orange Clauddy might be asleep while the Codex robot is hard at work. Each reacts to its own activity and whichever usage window is closest to its limit—even when the *weekly* limit is tighter than the 5-hour one.
+
+<p align="center">
+  <img src="native/tests/snapshots/compact-codex-only-working.png" width="510" alt="Claude character sleeping while the Codex robot works" />
 </p>
 
-https://github.com/user-attachments/assets/036dc92e-44f1-41d0-9463-a52879007e4d
+Prefer something smaller? Switch to **pet-only mode**: both characters float together, and hovering brings up a quick usage glance.
 
-## Stack
+<p align="center">
+  <img src="native/tests/snapshots/pet-only-codex-glance.png" width="300" alt="Two floating pixel pets with a hover usage bubble" />
+</p>
 
-A native app in Rust with egui, no browser engine: about 1–2% CPU and a 20 MB app. The `clauddy` command on npm is a small launcher that downloads it.
+The widget is draggable, always on top, and built with **native Rust + egui**—no browser-based dashboard to keep open. Expand it for the original detailed breakdown, or keep the compact four-limit view in sight.
 
-More details, with every tool and version, in [`docs/design/01-architecture.md`](docs/design/01-architecture.md#stack).
+## Get running on macOS
 
-## Requirements
+This fork is currently **source-install only**: no downloadable binary release or notarized installer is published yet. It has been built and tested on an Apple Silicon Mac.
 
-- macOS on Apple Silicon (the first-class build), Windows x64 or Linux x64
-- [Claude Code](https://claude.com/claude-code), whose logs in `~/.claude/projects` give the token counts; a Claude login, done once in Settings, gives the real %
-- [Bun](https://bun.sh), or Node 18+ for `npx`, only to run it with `bunx clauddy`
-- [Rust](https://rustup.rs), only to work on the code
-- Optional: [Codex](https://openai.com/codex) or the [Cursor](https://cursor.com) app on the same machine, to follow them too
-
-## Running
-
-On macOS, as an app that opens at login:
+**You'll need:** macOS, [Rust/Cargo](https://rustup.rs/), and your existing Claude Code and/or Codex installation.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/renatoaug/claude-usage-monitor/main/install.sh | bash
+git clone https://github.com/manynames3/clauddy-dual.git
+cd clauddy-dual
+./scripts/install-dual-macos.sh
 ```
 
-Anywhere, without installing:
+The script builds a signed local app, installs **Clauddy Dual.app** in `~/Applications`, and launches it. It keeps a timestamped backup before replacing an older Clauddy Dual build. Your original Clauddy installation is not replaced.
 
-```bash
-bunx clauddy
-```
+**Connect your providers:** In the app's Settings, authorize your Claude account for its account-level rate-limit percentages and enable Codex monitoring. The first Claude reading needs its own OAuth authorization—even if Claude Code is already signed in.
 
-[`docs/design/03-setup.md`](docs/design/03-setup.md) has Windows and Linux, updating, running from the code and every setting in `config.json`.
+If you see **“awaiting reading,”** that provider has not delivered a valid quota reading yet. Check its connection first; Codex data from local logs/app-server can be delayed or unavailable.
 
-## Test
+## What it reads—and what it doesn't
+
+- **Claude Code:** Account-level rate limits via its authorized usage connection, plus optional local Claude Code activity/log data.
+- **Codex:** Existing local Codex data and app-server/log readings. No invented percentages or reset times.
+- **Storage:** App settings and account state live on your machine in `~/.claude-usage-monitor/`. Provider authentication and usage requests still go to the corresponding services. See [the upstream privacy and architecture notes](docs/design/01-architecture.md).
+- **Updates:** This customized build deliberately **does not install upstream updates** that would remove the dual-provider UI. Rebuild from this repository instead.
+
+This is an independent project, **not affiliated with Anthropic or OpenAI**. Quota reporting depends on what each service makes available; a reading can occasionally be stale.
+
+## Build, test, and customize
 
 ```bash
 cd native
-cargo fmt --check                  # formatting
-cargo clippy --release --all-targets -- -D warnings   # lint
-cargo test --release               # unit tests and the snapshot gallery
-scripts/bundle.sh                  # builds target/Clauddy.app (macOS)
-CLAUDDY_STATE=fire cargo run --release   # forces a mood: idle, working, fire, tired, sleeping
+cargo fmt --check
+cargo clippy --release --all-targets -- -D warnings
+cargo test --release
 ```
 
-The snapshot gallery renders every screen state into `native/tests/snapshots/`; after an intended visual change, `UPDATE_SNAPSHOTS=1 cargo test --release` rewrites it. At the root, `bun run test` tests the npm launcher, and `bun install` turns on a pre-commit hook that formats it. CI runs all of it on every pull request.
+The screenshot fixtures live in [`native/tests/snapshots/`](native/tests/snapshots/). The Codex character's reproducible art generator is [`tools/generate_codex_pet.py`](tools/generate_codex_pet.py). Technical design details live in [`docs/design/`](docs/design/) and [`README-DUAL.md`](README-DUAL.md).
 
-## Releases
+**Looking for `bunx clauddy` or the original root `install.sh`?** Those are from the upstream project and do **not** install this customization. Use the source-install command above for Clauddy Dual.
 
-Every merge to `main` can be a release: [semantic-release](https://semantic-release.gitbook.io) reads the Conventional Commit titles since the last tag (a `feat` bumps the minor, a `fix` or `perf` the patch, `docs` and `chore` nothing), builds the app on macOS, Windows and Linux runners, publishes the GitHub release and `clauddy` on npm. The whole pipeline is in [`docs/design/07-releases.md`](docs/design/07-releases.md).
+## Credits & license
 
-## Docs
+Clauddy Dual builds on [**Clauddy** by Renato Augusto](https://github.com/renatoaug/claude-usage-monitor). The original native app, Claude pet, usage readers, and many UI components come from that MIT-licensed project. This fork adds the simultaneous four-limit dashboard and the independently animated Codex companion.
 
-Everything about how Clauddy works, runs and was decided is indexed in [`docs/`](docs/README.md). Code rules and the checks before calling a change done are in [`AGENTS.md`](AGENTS.md).
+[REA](https://github.com/morluto/rea) was used to analyze the inherited JavaScript launcher. The actual dual-provider UI changes were made directly to the open-source Rust app; REA is **not** a runtime dependency.
 
-We follow [Conventional Commits](https://www.conventionalcommits.org).
-
-## Privacy
-
-Everything stays on your machine, in `~/.claude-usage-monitor/`. Nothing leaves it except the OAuth and usage calls to Anthropic and, with Cursor connected, the usage calls to Cursor with the Cursor app's own token. What is kept and what is read: [`docs/design/01-architecture.md`](docs/design/01-architecture.md#data-on-disk).
-
-## Community
-
-- 🐛 [GitHub Issues](https://github.com/renatoaug/claude-usage-monitor/issues): report a bug or propose a feature
-- 🔧 Pull requests are welcome: read [`CONTRIBUTING.md`](CONTRIBUTING.md) first for how to start and the checks
-- 🐙 [@renatoaug on GitHub](https://github.com/renatoaug): the maintainer
-
-## License
-
-Clauddy is licensed under the [MIT License](LICENSE).
+Licensed under the [MIT License](LICENSE). Original attribution and license are preserved.

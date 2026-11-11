@@ -1,35 +1,37 @@
-# Clauddy Dual — macOS floating Claude + Codex HUD
+# Clauddy Dual: developer notes
 
-This is a local fork of [Clauddy](https://github.com/renatoaug/claude-usage-monitor). It keeps the orange Clauddy pet and adds a completely original animated mint-green Codex robot. Both companions appear simultaneously alongside their own session and weekly rate limits, without switching tabs.
+The main [README](README.md) covers the experience and public source-install process. This file documents how the fork differs from upstream and how to maintain it.
 
-## Installed app
+## What's different
 
-`~/Applications/Clauddy Dual.app` (bundle ID `dev.aiden.clauddy-dual`).
+- The compact floating HUD renders each connected provider simultaneously, with separate **5-hour/session** and **weekly** percentages used and reset countdowns for Claude and Codex.
+- Claude retains the original orange Clauddy sprite; Codex has a new mint-green robot, generated using [`tools/generate_codex_pet.py`](tools/generate_codex_pet.py).
+- Characters react independently to activity and whichever available limit (session or weekly) is highest. Pet-only mode shows both side by side, and the expanded view shows the selected provider's sprite.
+- Unknown or expired readings are displayed as unavailable, not as zero.
+- The macOS fixed window canvas has been widened to fit the dual HUD.
+- The custom bundle identifier is `dev.aiden.clauddy-dual` so it won't overwrite the official Clauddy app. Upstream auto-update installation is disabled for this ID; changes should be rebuilt from this fork.
 
-Launch from Finder or run `open "$HOME/Applications/Clauddy Dual.app"`. The floating compact view is the default for new installs. Use the expand button for Clauddy's original detailed view, and drag the widget to position it.
+## Architecture and data
 
-The card shows **percentage used**, progress bars, and **time remaining until reset**, separately for the 5-hour/session and weekly windows of Claude and Codex. Each character animates separately based on its provider's live activity and highest used quota (including weekly). Pet-only mode shows both side by side, and expanded mode uses the selected provider's matching character. Codex's original sprite sheet artwork and reproducible generator are in `native/assets/codex-{moods,working}.png` and `tools/generate_codex_pet.py`. Missing/stale readings show as unavailable rather than 0%. Codex must be enabled under Settings > Codex (already enabled on this Mac). Claude's account usage requires a separate OAuth connection from the app. Codex usage depends on the local Codex app-server/logs, which can sometimes lag or be absent.
+The native UI is Rust + `eframe/egui`. It reuses the original upstream account and Codex readers rather than approximating quota using token counts. Claude usage requires authorized access to its reported limits; Codex uses local app-server/session data and may have delayed or missing readings. Local app data is stored in `~/.claude-usage-monitor/`, **outside the Git checkout**. Do not commit that directory or authentication files.
 
-## Development and rebuild
-
-Source: `~/Developer/clauddy-dual`. The original project license remains in `LICENSE`.
-
-Rust toolchain and build artifacts are on the external SSD to avoid filling the system drive. In Terminal:
+The Codex companion consists of two transparent sprite sheets (4×2 working frames, 4×4 moods). Rebuild them using Pillow:
 
 ```bash
-export RUSTUP_HOME="$HOME/ExternalSSD/DevTools/rustup"
-export CARGO_HOME="$HOME/ExternalSSD/DevTools/cargo"
-export CARGO_TARGET_DIR="$HOME/ExternalSSD/DevTools/clauddy-target"
-export PATH="/opt/homebrew/opt/rustup/bin:$PATH"
-cd "$HOME/Developer/clauddy-dual/native"
-cargo fmt --check
-cargo clippy --release --all-targets -- -D warnings
-cargo test --release
-BUNDLE_ID=dev.aiden.clauddy-dual scripts/bundle.sh
+python3 -m pip install pillow
+python3 tools/generate_codex_pet.py
 ```
 
-The bundle script produces `native/target/Clauddy.app` (where `target` is a symlink to the external build directory); rename its display name and re-sign it if installing a replacement. The custom app intentionally disables updates from upstream so the dual-provider UI isn't overwritten; rebuild from the source fork for updates.
+For native macOS builds, install [Rust](https://rustup.rs/) and run `./scripts/install-dual-macos.sh` from the repository root. Run the same checks as the [main README](README.md#build-test-and-customize) before publishing changes.
 
-## REA
+## Publishing policy
 
-REA 6.8.0 analyzed the Clauddy JavaScript launcher directory `bin/` successfully (15 nodes, 15 edges). Analysis evidence is in `/tmp/clauddy-rea-evidence.json` while this session's temporary files remain. Clauddy's current UI is Rust/egui rather than JavaScript, so the dual-provider HUD was implemented directly against the open-source native layout and existing provider readers instead of trying to reverse-engineer the Rust binary.
+The fork's inherited upstream npm/GitHub automatic release workflow is intentionally disabled and saved as `docs/upstream-release-workflow.yml.disabled`. Do not restore it as-is: it is designed to publish the original `clauddy` npm package. This fork currently offers a source install, not public binary releases. `bunx clauddy` and the original root `install.sh` still target the upstream project.
+
+## How REA was used
+
+[REA](https://github.com/morluto/rea) v6.8.0 was used for static analysis of the inherited JavaScript launcher under `bin/`. It **did not** generate or reverse-engineer the Rust UI. The fork's UI and sprites were implemented directly from the open-source Rust project. REA is not bundled with the app and is not a runtime dependency.
+
+## Attribution
+
+Derived from [Clauddy by Renato Augusto](https://github.com/renatoaug/claude-usage-monitor). Preserves the upstream [MIT license](LICENSE) and source attribution.
