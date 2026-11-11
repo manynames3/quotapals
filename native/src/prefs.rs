@@ -14,6 +14,10 @@ pub struct Prefs {
     pub fire: i32,
     /// floating on the desktop, or in the menu bar
     pub menu_bar: bool,
+    /// Keep a native menu-bar icon visible while the widget still floats.
+    pub menu_bar_alongside: bool,
+    /// Automatic calendar theme or a user-selected outfit for both pets.
+    pub theme: String,
     /// Codex tracked alongside Claude
     pub codex: bool,
     /// Cursor tracked alongside Claude
@@ -42,6 +46,8 @@ impl Default for Prefs {
             near_limit: 95,
             fire: 90,
             menu_bar: false,
+            menu_bar_alongside: false,
+            theme: "auto".into(),
             codex: false,
             cursor: false,
             resume_claude: false,
@@ -74,6 +80,8 @@ impl Prefs {
             near_limit: pct(t.and_then(|a| a.get(1)).and_then(Value::as_i64), d.near_limit),
             fire: pct(v["fireThreshold"].as_i64(), d.fire),
             menu_bar: v["mode"].as_str() == Some("menubar"),
+            menu_bar_alongside: v["mode"].as_str() == Some("both"),
+            theme: v["theme"].as_str().unwrap_or("auto").to_string(),
             codex: v.pointer("/codex/enabled").and_then(Value::as_bool).unwrap_or(false),
             cursor: v.pointer("/cursor/enabled").and_then(Value::as_bool).unwrap_or(false),
             resume_claude: v.pointer("/autoContinue/claude").and_then(Value::as_bool).unwrap_or(false),
@@ -97,6 +105,9 @@ impl Prefs {
         self.near_limit = self.near_limit.clamp(1, 100);
         self.fire = self.fire.clamp(1, 99);
         self.zoom = self.zoom.clamp(100, 200);
+        if !matches!(self.theme.as_str(), "auto" | "classic" | "christmas") {
+            self.theme = "auto".into();
+        }
         self
     }
 
@@ -113,7 +124,14 @@ impl Prefs {
         v["sound"] = json!(self.sound);
         v["soundMutedUntil"] = json!(self.muted_until);
         v["pet"] = json!(self.pet);
-        v["mode"] = json!(if self.menu_bar { "menubar" } else { "floating" });
+        v["theme"] = json!(self.theme);
+        v["mode"] = json!(if self.menu_bar {
+            "menubar"
+        } else if self.menu_bar_alongside {
+            "both"
+        } else {
+            "floating"
+        });
         if !v["autoContinue"].is_object() {
             v["autoContinue"] = json!({});
         }
@@ -152,6 +170,8 @@ mod tests {
                 near_limit: 90,
                 fire: 85,
                 menu_bar: false,
+                menu_bar_alongside: false,
+                theme: "auto".into(),
                 codex: false,
                 cursor: false,
                 resume_claude: false,
@@ -167,6 +187,9 @@ mod tests {
         assert!(Prefs::from_value(&json!({"codex": {"enabled": true}})).codex);
         assert!(Prefs::from_value(&json!({"cursor": {"enabled": true}})).cursor);
         assert!(Prefs::from_value(&json!({"mode": "menubar"})).menu_bar);
+        assert!(Prefs::from_value(&json!({"mode": "both"})).menu_bar_alongside);
+        assert_eq!(Prefs::from_value(&json!({"theme": "christmas"})).theme, "christmas");
+        assert_eq!(Prefs::from_value(&json!({"theme": "invalid"})).theme, "auto");
         assert_eq!(Prefs::from_value(&json!({"zoom": 150})).zoom, 150);
         assert_eq!(Prefs::from_value(&json!({"zoom": 900})).zoom, 200);
         assert_eq!(Prefs::from_value(&json!({})), Prefs::default());

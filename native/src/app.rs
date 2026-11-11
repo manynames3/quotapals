@@ -255,8 +255,12 @@ impl App {
                     if self.draft.menu_bar && !self.prefs.menu_bar {
                         self.leaving = Some(Instant::now());
                     }
+                    let reopen_floating = self.prefs.menu_bar && self.draft.menu_bar_alongside;
                     self.draft.save();
                     self.prefs = self.draft.clone();
+                    if reopen_floating {
+                        self.show(ctx, true);
+                    }
                     self.settings.fire_threshold = self.prefs.fire as f64;
                     self.send(Command::Prefs(self.prefs.clone()));
                     self.view.settings = None;
@@ -362,10 +366,11 @@ impl App {
     /// answer what was clicked there.
     fn menu_bar(&mut self, ctx: &Context, snap: &Snapshot, session: Option<(f64, Option<i64>)>) {
         use crate::platform::tray::{Tray, TrayEvent, line};
-        let wanted = self.prefs.menu_bar && self.leaving.is_none();
+        // In "Both" mode the macOS status icon and draggable window coexist.
+        let wanted = (self.prefs.menu_bar || self.prefs.menu_bar_alongside) && self.leaving.is_none();
         if wanted && self.tray.is_none() {
             self.tray = Tray::new(ctx);
-            if self.tray.is_some() {
+            if self.tray.is_some() && self.prefs.menu_bar {
                 self.close_popover(ctx);
             }
         } else if !wanted && self.tray.is_some() {
@@ -379,10 +384,13 @@ impl App {
         let text = crate::platform::tray::title_hottest(&sessions, self.settings.fire_threshold);
         tray.set_title(&text);
         // the menu leads with the limits, as the panel does
-        let mut lines = vec![line("Session", session.map(|s| s.0), session.and_then(|s| s.1))];
+        let mut lines = vec![line("Claude 5h", session.map(|s| s.0), session.and_then(|s| s.1))];
         if let Some(l) = &snap.limits {
             let week = live(&l.week, snap.limits_at);
-            lines.push(line("Weekly", week.map(|w| w.0), week.and_then(|w| w.1)));
+            lines.push(line("Claude weekly", week.map(|w| w.0), week.and_then(|w| w.1)));
+            if let Some(n) = crate::format::projected_five_hour_resets(session.and_then(|s| s.1), week.and_then(|w| w.1)) {
+                lines.push(format!("Claude ≈{n} more 5h resets before weekly"));
+            }
             for sc in &l.scoped {
                 let w = live(&crate::auth::Window { pct: sc.pct, reset_ms: sc.reset_ms }, snap.limits_at);
                 lines.push(line(&format!("{} weekly", sc.label), w.map(|w| w.0), w.and_then(|w| w.1)));
@@ -396,6 +404,9 @@ impl App {
             if !c.weekly_only {
                 let (p, r) = ext(&c.weekly);
                 lines.push(line("Codex weekly", p, r));
+                if let Some(n) = crate::format::projected_five_hour_resets(c.session.as_ref().and_then(|s| s.reset_ms), r) {
+                    lines.push(format!("Codex ≈{n} more 5h resets before weekly"));
+                }
             }
         }
         if let Some(c) = &snap.cursor {
@@ -409,10 +420,18 @@ impl App {
         let icon = tray.rect();
         for e in events {
             match e {
+                TrayEvent::Open if self.prefs.menu_bar_alongside => {
+                    // The widget is already there: bring it forward rather
+                    // than turning the same window into a separate popover.
+                    self.show(ctx, true);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                }
                 TrayEvent::Open => self.open_popover(ctx, icon),
                 TrayEvent::Floating => {
                     self.prefs.menu_bar = false;
+                    self.prefs.menu_bar_alongside = false;
                     self.draft.menu_bar = false;
+                    self.draft.menu_bar_alongside = false;
                     self.prefs.save();
                 }
             }
@@ -571,7 +590,9 @@ impl eframe::App for App {
         let chosen = if self.view.settings.is_some() { &self.draft.pet } else { &self.prefs.pet };
         let today = chrono::Local::now();
         let (y, m, d) = (chrono::Datelike::year(&today), chrono::Datelike::month(&today), chrono::Datelike::day(&today));
-        self.pet.set_skin(crate::components::skins::active(chosen, y, m, d));
+        let theme = if self.view.settings.is_some() { &self.draft.theme } else { &self.prefs.theme };
+        self.pet.set_skin(crate::components::skins::active_theme(chosen, theme, y, m, d));
+        let codex_skin = crate::components::skins::codex_for_theme(theme, m, d);
         // a new poll: what the pet makes of it
         if snap.seq != self.heard {
             self.heard = snap.seq;
@@ -594,6 +615,7 @@ impl eframe::App for App {
             session,
             view: &self.view,
             pet: &self.pet,
+            codex_skin,
             logos: &self.logos,
             menu_bar: self.prefs.menu_bar,
             heads_up: self.prefs.heads_up.min(self.prefs.near_limit) as f64,

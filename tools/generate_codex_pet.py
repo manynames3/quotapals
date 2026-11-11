@@ -122,6 +122,24 @@ def draw_frame(n, state):
             r(37, 26, 38, 27, GLINT)
         r(29, 33, 35, 34, EYE)
 
+    # Tiny expressive details: rosy cheeks, antenna sparkles, and an
+    # occasional pixel heart. Every mood has its own small personality.
+    if state in ("idle", "working"):
+        r(20, 32, 22, 34, "#eb9ca4")
+        r(42, 32, 44, 34, "#eb9ca4")
+    if state == "idle" and n == 3:
+        # Happy little pixel heart when there's nothing urgent to do
+        r(48, 11, 50, 13, "#f6a3c7")
+        r(52, 11, 54, 13, "#f6a3c7")
+        r(49, 12, 53, 15, "#f6a3c7")
+        r(50, 16, 52, 17, "#f6a3c7")
+    if state == "fire" and n % 2 == 1:
+        r(46, 31, 47, 33, "#e5faff")  # worried sweat bead
+        r(46, 34, 47, 35, "#97c8df")
+    if state == "working" and n in (2, 6):
+        r(53, 15, 57, 15, GLINT)
+        r(55, 13, 55, 17, GLINT)
+
     # Desk + coding laptop occupy only the working animation
     if state == "working":
         r(6, 52, 58, 58, OUT)

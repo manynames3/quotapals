@@ -57,7 +57,7 @@ impl Tray {
     pub fn new(ctx: &Context) -> Option<Self> {
         let events: Arc<Mutex<Vec<TrayEvent>>> = Arc::default();
         let (open, floating, quit) =
-            (MenuItem::new("Open Clauddy", true, None), MenuItem::new("Floating widget", true, None), MenuItem::new("Quit Clauddy", true, None));
+            (MenuItem::new("Open QuotaPals", true, None), MenuItem::new("Floating only", true, None), MenuItem::new("Quit QuotaPals", true, None));
         let menu = build_menu(&[], &open, &floating, &quit)?;
         let builder = TrayIconBuilder::new();
         // macOS tints a template icon for the menu bar's theme
@@ -68,9 +68,9 @@ impl Tray {
         let icon = builder
             .with_menu(Box::new(menu))
             .with_menu_on_left_click(true)
-            .with_tooltip("Clauddy")
-            // macOS keeps where the icon was dragged to across launches
-            .with_autosave_name("clauddy")
+            .with_tooltip("QuotaPals")
+            // Keep the saved menu-bar position independent of upstream Clauddy.
+            .with_autosave_name("quotapals")
             .build()
             .ok()?;
         let (q, c) = (events.clone(), ctx.clone());
@@ -125,7 +125,7 @@ impl Tray {
         self.title = title.to_string();
         #[cfg(target_os = "macos")]
         self.icon.set_title((!title.is_empty()).then(|| format!(" {title}")));
-        let _ = self.icon.set_tooltip(Some(if title.is_empty() { "Clauddy".to_string() } else { format!("Clauddy · {title}") }));
+        let _ = self.icon.set_tooltip(Some(if title.is_empty() { "QuotaPals".to_string() } else { format!("QuotaPals · {title}") }));
     }
 }
 

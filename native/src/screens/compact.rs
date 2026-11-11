@@ -23,7 +23,7 @@ const PAD_TOP: f32 = 32.0;
 const PAD: f32 = 12.0;
 const STAGE: Vec2 = Vec2::new(64.0, 70.0);
 const LINE_H: f32 = 14.0;
-const GROUP_H: f32 = 78.0;
+const GROUP_H: f32 = 92.0;
 const GROUP_GAP: f32 = 6.0;
 const REMIND_H: f32 = 28.0;
 
@@ -125,10 +125,13 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
 
     let band_y = rect.top() + 15.5;
     account(p, rect.left() + 10.0, band_y, f.snap.profile.as_ref(), !f.snap.loaded);
-    match button_row(ui, rect.right() - 8.0, band_y, &[("close", icon::CLOSE), ("expand", icon::EXPAND), ("pet-only", icon::PET)]) {
+    // Keep settings one click away from the floating view, including Resume.
+    // The icons lay out right-to-left, with the gear immediately beside X.
+    match button_row(ui, rect.right() - 8.0, band_y, &[("close", icon::CLOSE), ("settings", icon::GEAR), ("expand", icon::EXPAND), ("pet-only", icon::PET)]) {
         Some(0) => actions.push(Action::Close),
-        Some(1) => actions.push(Action::Resize(Size::Expanded)),
-        Some(2) => actions.push(Action::Resize(Size::PetOnly)),
+        Some(1) => actions.push(Action::ToggleSettings),
+        Some(2) => actions.push(Action::Resize(Size::Expanded)),
+        Some(3) => actions.push(Action::Resize(Size::PetOnly)),
         _ => {}
     }
 
@@ -156,7 +159,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         let pet_space = pet_area.shrink2(Vec2::new(2.0, 5.0));
         let body = match provider {
             Provider::Claude => f.pet.draw_fit(p, pet_space, mood),
-            Provider::Codex => f.pet.draw_skin_fit(p, pet_space, mood, &skins::CODEX),
+            Provider::Codex => f.pet.draw_skin_fit(p, pet_space, mood, f.codex_skin),
             Provider::Cursor => f.pet.draw_skin_fit(p, pet_space, mood, &skins::SKINS[2]),
         };
         if provider == Provider::Claude {
@@ -182,6 +185,17 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         let names = if provider == Provider::Cursor { ["Plan", "API"] } else { ["5h", "Week"] };
         draw_window(p, left, right, y + 19.0, names[0], rows[0], provider);
         draw_window(p, left, right, y + 47.0, names[1], rows[1], provider);
+        if provider != Provider::Cursor
+            && let Some(count) = crate::format::projected_five_hour_resets(rows[0].1, rows[1].1)
+        {
+            p.text(
+                Pos2::new(right, y + 80.0),
+                Align2::RIGHT_CENTER,
+                format!("≈{count} more 5h resets before weekly"),
+                FontId::proportional(text::TINY),
+                color::FG_SUB,
+            );
+        }
         y += GROUP_H + GROUP_GAP;
     }
 

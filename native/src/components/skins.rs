@@ -36,6 +36,22 @@ pub static CODEX: Skin = Skin {
     stand_box: [0.13, 0.05, 0.87, 0.93],
 };
 
+/// Christmas outfit for the Codex companion, without changing its identity.
+pub static CODEX_CHRISTMAS: Skin = Skin {
+    id: "codex-christmas",
+    name: "Codex Christmas",
+    pack: "christmas",
+    working: include_bytes!("../../assets/codex-christmas-working.png"),
+    moods: include_bytes!("../../assets/codex-christmas-moods.png"),
+    work_box: [0.05, 0.03, 0.95, 0.95],
+    fire_box: [0.03, 0.02, 0.96, 0.91],
+    stand_box: [0.10, 0.02, 0.94, 0.94],
+};
+
+pub fn codex_for_theme(theme: &str, month: u32, day: u32) -> &'static Skin {
+    if theme == "christmas" || (theme == "auto" && [(12, 24), (12, 25)].contains(&(month, day))) { &CODEX_CHRISTMAS } else { &CODEX }
+}
+
 pub struct Pack {
     pub id: &'static str,
     /// (month, day) it takes over on
@@ -147,6 +163,15 @@ pub fn active(chosen: &str, year: i32, month: u32, day: u32) -> &'static Skin {
     seasonal(year, month, day).or_else(|| find(chosen)).unwrap_or(&SKINS[0])
 }
 
+/// Manual Christmas applies now instead of waiting for December 24.
+pub fn active_theme(chosen: &str, theme: &str, year: i32, month: u32, day: u32) -> &'static Skin {
+    match theme {
+        "christmas" => find("santa").unwrap_or(&SKINS[0]),
+        "classic" => find(chosen).unwrap_or(&SKINS[0]),
+        _ => active(chosen, year, month, day),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -180,8 +205,16 @@ mod tests {
     }
 
     #[test]
+    fn manual_christmas_dresses_both_pets_and_classic_restores_them() {
+        assert_eq!(active_theme("clauddy", "christmas", 2026, 11, 11).id, "santa");
+        assert_eq!(codex_for_theme("christmas", 11, 11).id, "codex-christmas");
+        assert_eq!(codex_for_theme("classic", 12, 25).id, "codex-companion");
+        assert_eq!(active_theme("clauddy", "classic", 2026, 12, 25).id, "clauddy");
+    }
+
+    #[test]
     fn every_pet_has_both_sheets_in_their_grids() {
-        for s in SKINS.iter().chain(std::iter::once(&CODEX)) {
+        for s in SKINS.iter().chain([&CODEX, &CODEX_CHRISTMAS]) {
             for (bytes, size) in [(s.working, (1024, 512)), (s.moods, (1024, 1024))] {
                 let r = png::Decoder::new(std::io::Cursor::new(bytes)).read_info().unwrap();
                 assert_eq!((r.info().width, r.info().height), size, "{}", s.id);

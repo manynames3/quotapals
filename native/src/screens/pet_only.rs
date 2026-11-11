@@ -7,7 +7,6 @@ use eframe::egui::{Align2, Context, CursorIcon, FontId, Key, Pos2, Rect, Sense, 
 use super::{Action, Frame, MARGIN, Size, compact};
 use crate::components::glance::glance;
 use crate::components::logos::Provider;
-use crate::components::skins;
 use crate::ui::theme::{color, text};
 
 const CARD: Vec2 = Vec2::new(206.0, 166.0);
@@ -51,7 +50,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
     ui.painter().text(Pos2::new(stage.center().x, stage.bottom() + 9.0), Align2::CENTER_CENTER, "Claude", FontId::proportional(text::SMALL), color::CLAUDE);
     if dual {
         let codex_mood = compact::provider_mood(f, Provider::Codex);
-        let codex_body = f.pet.draw_skin_fit(ui.painter(), codex_stage.shrink2(Vec2::new(2.0, 9.0)), codex_mood, &skins::CODEX);
+        let codex_body = f.pet.draw_skin_fit(ui.painter(), codex_stage.shrink2(Vec2::new(2.0, 9.0)), codex_mood, f.codex_skin);
         ui.painter().text(
             Pos2::new(codex_stage.center().x, codex_stage.bottom() + 9.0),
             Align2::CENTER_CENTER,

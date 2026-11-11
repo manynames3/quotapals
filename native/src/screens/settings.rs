@@ -58,7 +58,7 @@ fn pane_h(tab: Tab, snap: &Snapshot, view: &super::View) -> f32 {
     match tab {
         Tab::Accounts => TILES_H + 10.0 + CONN_H + if login { LOGIN_H } else { 0.0 },
         Tab::Alerts => block_h(3) + GAP + block_h(1),
-        Tab::Appearance => block_h(1) + GAP + block_h(2) + GAP + block_h(2),
+        Tab::Appearance => block_h(1) + GAP + block_h(1) + GAP + block_h(2) + GAP + block_h(2),
         Tab::Resume => block_h(2) + 95.0,
     }
 }
@@ -491,14 +491,35 @@ fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, draft: &Prefs, 
     if resp.clicked() {
         actions.push(Action::TogglePetPicker);
     }
+    let theme_y = gy + row;
+    let gy = group_label(&p, left, theme_y + GAP, "outfits");
+    let rows = group(&p, left, right, gy, 1);
+    row_label(&p, left, rows[0], "Both pets", false);
+    let theme = match draft.theme.as_str() {
+        "classic" => 1,
+        "christmas" => 2,
+        _ => 0,
+    };
+    let theme_rect = Rect::from_min_size(Pos2::new(right - 10.0 - 164.0, rows[0] - 12.0), Vec2::new(164.0, 24.0));
+    if let Some(i) = segmented(ui, theme_rect, "holiday-outfit", &["Auto", "Classic", "Xmas"], theme, text::SMALL, &[]) {
+        let next = ["auto", "classic", "christmas"][i];
+        actions.push(Action::EditPrefs(Prefs { theme: next.into(), ..draft.clone() }));
+    }
     let below = gy + row;
 
     let gy = group_label(&p, left, below + GAP, "display");
     let rows = group(&p, left, right, gy, 2);
     row_label(&p, left, rows[0], "Lives in", false);
-    let seg = Rect::from_min_size(Pos2::new(right - 10.0 - 140.0, rows[0] - 12.0), Vec2::new(140.0, 24.0));
-    if let Some(i) = segmented(ui, seg, "lives-in", &["Floating", "Menu bar"], draft.menu_bar as usize, text::SMALL, &[]) {
-        actions.push(Action::EditPrefs(Prefs { menu_bar: i == 1, ..draft.clone() }));
+    let seg = Rect::from_min_size(Pos2::new(right - 10.0 - 145.0, rows[0] - 12.0), Vec2::new(145.0, 24.0));
+    let mode = if draft.menu_bar {
+        1
+    } else if draft.menu_bar_alongside {
+        2
+    } else {
+        0
+    };
+    if let Some(i) = segmented(ui, seg, "lives-in", &["Float", "Bar", "Both"], mode, text::SMALL, &[]) {
+        actions.push(Action::EditPrefs(Prefs { menu_bar: i == 1, menu_bar_alongside: i == 2, ..draft.clone() }));
     }
     row_label(&p, left, rows[1], "Zoom", false);
     // applied as you step it, so the widget shows the size at once

@@ -114,6 +114,7 @@ pub struct Frame<'a> {
     pub session: Option<(f64, Option<i64>)>,
     pub view: &'a View,
     pub pet: &'a Pet,
+    pub codex_skin: &'static crate::components::skins::Skin,
     pub logos: &'a Logos,
     /// the panel is the menu bar's popover: no minimize, no pet-only
     pub menu_bar: bool,

@@ -196,7 +196,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     match svc.provider {
         Provider::Claude => f.pet.draw(&inside, pet_area, pet_mood),
         Provider::Codex => {
-            f.pet.draw_skin_fit(&inside, pet_area, pet_mood, &skins::CODEX);
+            f.pet.draw_skin_fit(&inside, pet_area, pet_mood, f.codex_skin);
         }
         Provider::Cursor => {
             f.pet.draw_skin_fit(&inside, pet_area, pet_mood, &skins::SKINS[2]);

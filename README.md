@@ -40,11 +40,26 @@ Prefer something smaller? Switch to **pet-only mode**: both characters float tog
 
 The widget is draggable, always on top, and built with **native Rust + egui**—no browser-based dashboard to keep open. Expand it for the original detailed breakdown, or keep the compact four-limit view in sight.
 
+## Christmas outfits, expressive pets, and the macOS menu bar
+
+Make the widget feel like your own desk companion. Click the **gear beside X → Look**, then choose:
+
+- **Outfits:** **Auto** for the existing seasonal calendar, **Classic** for your normal pets, or **Xmas** to dress both pets right now. Claude wears the upstream Santa costume; Codex gets an original pixel-art Santa hat, scarf, candy cane, and gift.
+- **Lives in:** **Float** (desktop widget), **Bar** (macOS menu-bar icon and dropdown), or **Both** (keep the widget visible *and* use the menu-bar icon). The menu lists each provider's percentages and reset times.
+- **More personality:** Codex has animated blush, occasional heart and sparkles, plus distinct working, resting, sleeping, worried, and exhausted expressions.
+
+<p align="center">
+  <img src="native/tests/snapshots/compact-christmas.png" width="520" alt="QuotaPals Christmas theme: Santa Claude and a festive Codex robot with usage and projected reset counts" />
+</p>
+<p align="center"><sub>Christmas mode with illustrative values; choose Xmas in Look to enable it any time.</sub></p>
+
+Each provider also shows **≈N more 5h resets before weekly** when both reset timestamps are known. This is a **projection of future five-hour window boundaries**, not a promise that new quota will be available or that you'll get N full sessions. Windows can shift with activity.
+
 ## Keep moving after your limit resets (opt-in)
 
 You shouldn't have to watch a clock just to get back to work. QuotaPals adds **Auto-continue after reset** for both Claude Code and Codex, adapted from the recovery workflow in [CodexReset by BOYSO](https://github.com/boyso/codex-reset).
 
-Open **Settings → Resume** and turn on **Claude Code**, **Codex**, or both. Each switch is **off by default**. QuotaPals checks the local session history for a turn that **ended in a confirmed usage-limit error**, then waits for fresh quota data showing that a new usage window has opened. Only then does it send a short “Continue where you left off” message to the affected session.
+In the compact widget, click the **gear next to X**, open **Resume**, and turn on **Claude Code**, **Codex**, or both. Each switch is **off by default**. QuotaPals checks the local session history for a turn that **ended in a confirmed usage-limit error**, then waits for fresh quota data showing that a new usage window has opened. Only then does it send a short “Continue where you left off” message to the affected session.
 
 - **Codex:** Detects failed `usageLimitExceeded` turns in the local read-only Codex history database and resumes through `codex exec resume`.
 - **Claude Code:** Detects explicit API-limit failures in local Claude Code session logs, then uses `claude --resume` in non-interactive mode.

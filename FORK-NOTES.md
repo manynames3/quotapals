@@ -11,6 +11,14 @@ The main [README](README.md) covers the experience and public source-install pro
 - The macOS fixed window canvas has been widened to fit the dual HUD.
 - The custom bundle identifier is `dev.manynames3.quotapals` so it won't overwrite the official Clauddy app. Upstream auto-update installation is disabled for this ID; changes should be rebuilt from this fork.
 
+## Display modes, holiday companion art, and reset estimates
+
+Three persisted display modes are supported by the existing macOS tray integration: floating widget only, menu-bar popover only, or both side by side. The new Both mode leaves the floating widget visible and makes menu-bar Open focus the existing window instead of repurposing it into a popover.
+
+The Look settings also offer three theme modes: Auto (original calendar-driven seasonal selection), Classic (the chosen default Claude pet and classic Codex robot), and Xmas (Santa-style Claude and matching original Codex Christmas robot). Codex mood sheets for both themes are generated reproducibly with \`tools/generate_codex_pet.py\` followed by \`tools/generate_codex_christmas.py\`. The existing upstream Santa Claude sprite remains credited to Clauddy.
+
+\`format::projected_five_hour_resets\` projects how many nominal five-hour session reset boundaries fit before the weekly reset. It only runs when both timestamps are known and returns no guarantee of quota; actual provider rolling windows may move or not recur without activity. The estimate is deliberately displayed with an approximation sign.
+
 ## Auto-continue integration
 
 `native/src/auto_continue.rs` adapts the rate-limit pause detection/recovery workflow from [CodexReset](https://github.com/boyso/codex-reset) (MIT © 2026 BOYSO). This is independently implemented in Rust rather than vendoring the Swift app-server/GUI engine. The automation worker runs alongside the normal poller, but both provider switches default to off; user settings are saved under `autoContinue.claude` and `autoContinue.codex` in the existing `config.json`. The worker requires a recent, valid, below-limit quota reading in a window that opened after the recorded failure. It uses `claude -p --resume` and `codex exec resume` with explicit session IDs, never a shell. The per-session deduplication record is private to `~/.claude-usage-monitor/auto-continue-state.json`.

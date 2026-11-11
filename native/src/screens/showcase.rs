@@ -72,6 +72,7 @@ fn frame<'a>(s: &'a Shot, pet: &'a Pet, logos: &'a Logos, area: Rect) -> Frame<'
         session: s.snap.limits.as_ref().and_then(|l| crate::components::meter::live(&l.session, None)),
         view: &s.view,
         pet,
+        codex_skin: &crate::components::skins::CODEX,
         logos,
         menu_bar: s.menu_bar,
         heads_up: 80.0,

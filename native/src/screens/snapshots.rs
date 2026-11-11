@@ -94,7 +94,9 @@ fn render_inner(case: Case, draft: Prefs) {
     let window = {
         let ctx = egui::Context::default();
         let pet = Pet::frozen(&ctx, 0.3);
-        if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
+        if case.name.contains("christmas") {
+            pet.set_skin(crate::components::skins::find("santa").unwrap());
+        } else if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
             pet.set_skin(skin);
         }
         let logos = Logos::load(&ctx);
@@ -107,6 +109,7 @@ fn render_inner(case: Case, draft: Prefs) {
             session,
             view: &case.view,
             pet: &pet,
+            codex_skin: if case.name.contains("christmas") { &crate::components::skins::CODEX_CHRISTMAS } else { &crate::components::skins::CODEX },
             logos: &logos,
             menu_bar: case.name.ends_with("menu-bar"),
             heads_up: 80.0,
@@ -122,7 +125,9 @@ fn render_inner(case: Case, draft: Prefs) {
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
-        if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
+        if case.name.contains("christmas") {
+            pet.set_skin(crate::components::skins::find("santa").unwrap());
+        } else if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
             pet.set_skin(skin);
         }
         let area = ctx.content_rect().shrink(super::MARGIN);
@@ -134,6 +139,7 @@ fn render_inner(case: Case, draft: Prefs) {
             session,
             view: &case.view,
             pet,
+            codex_skin: if case.name.contains("christmas") { &crate::components::skins::CODEX_CHRISTMAS } else { &crate::components::skins::CODEX },
             logos,
             menu_bar: case.name.ends_with("menu-bar"),
             heads_up: 80.0,
@@ -351,6 +357,23 @@ pub(super) fn with_codex(mut snap: Snapshot, working: bool) -> Snapshot {
     });
     snap.codex_found = Some((true, Some("plus".into())));
     snap
+}
+
+#[test]
+fn compact_christmas_both_pets() {
+    render(Case {
+        name: "compact-christmas",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(30.0, 53.0))), false),
+        mood: Mood::Idle,
+        view: compact_view(),
+    });
+}
+
+#[test]
+fn settings_christmas_selected() {
+    let snap = with_codex(snapshot(usage(false, None), Some(limits(30.0, 53.0))), false);
+    let draft = Prefs { theme: "christmas".into(), menu_bar_alongside: true, ..Prefs::default() };
+    render_with(Case { name: "settings-christmas", snap, mood: Mood::Idle, view: settings_view(settings::Tab::Appearance) }, draft);
 }
 
 #[test]
