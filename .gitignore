@@ -1,0 +1,20 @@
+node_modules/
+dist/
+
+# local OAuth token — never commit
+auth.json
+
+.DS_Store
+*.log
+
+# native (Rust) build output
+native/target/
+native/tests/snapshots/*.diff.png
+native/tests/snapshots/*.new.png
+native/tests/snapshots/*.old.png
+
+# the showcase video: rendered frames, clips and music are generated
+tools/showcase/tmp/
+tools/showcase/assets/clips/
+tools/showcase/assets/music.wav
+tools/showcase/.hyperframes/

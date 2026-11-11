@@ -1,0 +1,50 @@
+{
+  "name": "clauddy",
+  "version": "0.1.0",
+  "description": "A desktop pet that tracks your Claude Code usage",
+  "bin": {
+    "clauddy": "bin/clauddy.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "scripts": {
+    "test": "bun test test/",
+    "check": "biome check --write .",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "prepare": "git config core.hooksPath .githooks || true"
+  },
+  "author": "Renato",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renatoaug/claude-usage-monitor.git"
+  },
+  "homepage": "https://github.com/renatoaug/claude-usage-monitor#readme",
+  "bugs": {
+    "url": "https://github.com/renatoaug/claude-usage-monitor/issues"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "usage",
+    "monitor",
+    "desktop-pet",
+    "macos",
+    "menubar",
+    "widget"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "bun@1.3.14",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.6",
+    "conventional-changelog-conventionalcommits": "^9.3.1",
+    "semantic-release": "^25.0.9"
+  }
+}
