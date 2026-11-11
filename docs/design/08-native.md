@@ -42,6 +42,10 @@ In the menu bar the window is an ordinary one the card's size, shown under the i
 
 A hidden window gets no frames, so anything that must happen while it is hidden (the menu's picks) puts it back on screen first.
 
+## Dual-provider compact monitor
+
+The compact floating card shows the pet alongside every connected provider, with a separate percentage bar and reset countdown for each rate-limit window: five-hour session and weekly usage for Claude and Codex, and the monthly plan and API pools for Cursor. It uses the existing `Snapshot` readers rather than estimating quota from tokens. A missing or expired reading is shown as unavailable, not zero. The expanded view still has the original service tabs for detailed analysis. New installs open in compact mode, and the macOS fixed canvas is wide enough for the two-window-per-provider layout.
+
 ## Pets
 
 A pet is a pair of sprite sheets listed in `src/components/skins.rs`; the catalog, the holiday rule and how to add one are in [pets](06-pets.md).

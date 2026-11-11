@@ -13,6 +13,19 @@ const REPO: &str = "renatoaug/claude-usage-monitor";
 const FIRST: Duration = Duration::from_secs(8);
 const EVERY: Duration = Duration::from_secs(6 * 3600);
 
+/// Upstream's installer must never replace the customized dual-limit build.
+fn custom_build() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2_foundation::NSBundle;
+        NSBundle::mainBundle().bundleIdentifier().is_some_and(|id| id.to_string() == "dev.aiden.clauddy-dual")
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum Update {
     #[default]
@@ -64,8 +77,8 @@ impl Updater {
         std::thread::Builder::new()
             .name("updates".into())
             .spawn(move || {
-                // a development build (under target/) is always behind: no nagging dot
-                if std::env::current_exe().is_ok_and(|e| e.components().any(|c| c.as_os_str() == "target")) {
+                // Development and custom builds never offer upstream releases.
+                if custom_build() || std::env::current_exe().is_ok_and(|e| e.components().any(|c| c.as_os_str() == "target")) {
                     return;
                 }
                 std::thread::sleep(FIRST);
@@ -95,6 +108,10 @@ impl Updater {
 
     /// Ask now, and say what came back.
     pub fn check(&self) {
+        if custom_build() {
+            self.set(Update::UpToDate);
+            return;
+        }
         self.set(Update::Checking);
         let me = self.clone();
         std::thread::spawn(move || {
@@ -109,6 +126,10 @@ impl Updater {
     /// Install the latest release. macOS runs install.sh, which replaces
     /// the app and opens the new one, so this one quits to make way.
     pub fn install(&self) {
+        if custom_build() {
+            self.set(Update::Failed("This customized build updates from its source project".into()));
+            return;
+        }
         if !cfg!(target_os = "macos") {
             crate::app::open_url(&format!("https://github.com/{REPO}/releases/latest"));
             return;

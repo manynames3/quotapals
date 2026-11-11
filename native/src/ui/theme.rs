@@ -258,7 +258,6 @@ pub mod text {
     pub const SMALL: f32 = 10.0; // rows, subtitles, the account
     pub const BODY: f32 = 11.0; // labels, the status line
     pub const VALUE: f32 = 12.0; // a meter's %
-    pub const DISPLAY: f32 = 15.0; // a compact row's %
     pub const HERO: f32 = 27.0; // the session's %
 }
 

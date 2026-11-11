@@ -44,8 +44,8 @@ mod mac {
     use objc2_service_management::{SMAppService, SMAppServiceStatus};
 
     pub fn register() {
-        // the released bundle only; the dev one is app.clauddy.dev
-        if NSBundle::mainBundle().bundleIdentifier().is_none_or(|id| id.to_string() != "app.clauddy") {
+        // Register the official or customized installed app, never a dev bundle.
+        if NSBundle::mainBundle().bundleIdentifier().is_none_or(|id| !matches!(id.to_string().as_str(), "app.clauddy" | "dev.aiden.clauddy-dual")) {
             return;
         }
         // SAFETY: plain calls on the app's own login-item service

@@ -114,7 +114,7 @@ impl Said {
 const FIXED_CANVAS: bool = cfg!(target_os = "macos");
 /// Wide enough for the expanded panel, tall enough for its Details open
 /// or any Settings tab; it grows if a screen ever needs more.
-const CANVAS: [f32; 2] = [292.0, 780.0];
+const CANVAS: [f32; 2] = [352.0, 780.0];
 
 pub fn initial_size() -> [f32; 2] {
     // the menu bar's popover is an ordinary window the card's size
@@ -135,7 +135,7 @@ fn view_path() -> std::path::PathBuf {
 }
 
 fn load_view() -> View {
-    std::fs::read(view_path()).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
+    std::fs::read(view_path()).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_else(|| View { size: Size::Compact, ..View::default() })
 }
 
 fn save_view(v: &View) {
