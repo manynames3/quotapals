@@ -1,6 +1,6 @@
 // Text helpers egui leaves out.
 
-use eframe::egui::{Align, Align2, Color32, Context, FontId, Painter, Pos2, Rect, Vec2};
+use eframe::egui::{Align, Align2, Color32, FontId, Painter, Pos2, Rect, Vec2};
 
 /// egui has one weight per font: thicken by drawing twice, a hair apart.
 pub fn bold(p: &Painter, pos: Pos2, align: Align2, text: &str, size: f32, color: Color32) -> Rect {
@@ -36,11 +36,6 @@ pub fn bold_mid(p: &Painter, x: f32, mid: f32, h: Align, text: &str, size: f32, 
     let r = text_mid(p, x, mid, h, text, size, color);
     text_mid(p, x + 0.4, mid, h, text, size, color);
     r
-}
-
-/// Width of `text` at `size`, for centring a mixed line.
-pub fn width(ctx: &Context, text: &str, size: f32) -> f32 {
-    ctx.fonts_mut(|f| f.layout_no_wrap(text.into(), FontId::proportional(size), Color32::PLACEHOLDER).size().x)
 }
 
 /// Cut to `max` characters with an ellipsis.

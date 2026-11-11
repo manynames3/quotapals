@@ -36,7 +36,6 @@ mod palette {
     pub const SAND_200: Color32 = rgb(0xd0cac2);
     pub const SAND_250: Color32 = rgb(0xc4b9aa);
     pub const SAND_300: Color32 = rgb(0xbdb7af);
-    pub const SAND_350: Color32 = rgb(0xb9afa3);
     pub const SAND_400: Color32 = rgb(0xaaa59d);
     pub const SAND_450: Color32 = rgb(0xa8a29a);
     pub const SAND_500: Color32 = rgb(0xa39f98);
@@ -63,7 +62,6 @@ mod palette {
     pub const TAN_400: Color32 = rgb(0xc2865e);
     pub const CORAL_300: Color32 = rgb(0xf3a38b);
     pub const CORAL_400: Color32 = rgb(0xe4a17c);
-    pub const CORAL_450: Color32 = rgb(0xdf9777);
     pub const CORAL_500: Color32 = rgb(0xd97757);
     pub const RED_400: Color32 = rgb(0xee705e);
     pub const RED_500: Color32 = rgb(0xe0553f);
@@ -124,7 +122,6 @@ pub mod color {
     pub const FG_ROW: Color32 = SAND_200;
     pub const FG_TOGGLE: Color32 = SAND_250;
     pub const FG_LABEL: Color32 = SAND_300;
-    pub const FG_CAPTION: Color32 = SAND_350;
     pub const FG_SECTION: Color32 = SAND_400;
     pub const FG_SUB: Color32 = SAND_450;
     pub const FG_MUTED: Color32 = SAND_500;
@@ -218,7 +215,6 @@ pub mod color {
 
     // providers: the logo tint and the bar
     pub const CLAUDE: Color32 = CORAL_400;
-    pub const CLAUDE_WORKING: Color32 = CORAL_450;
     pub const CLAUDE_BAR: Color32 = CORAL_500;
     pub const CODEX: Color32 = SAGE_300;
     pub const CODEX_BAR: Color32 = SAGE_400;

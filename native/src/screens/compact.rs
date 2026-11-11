@@ -10,7 +10,6 @@ use crate::components::meter;
 use crate::components::pet::Mood;
 use crate::components::service_row::ServiceRow;
 use crate::components::skins;
-use crate::components::status::caption;
 use crate::format::countdown;
 use crate::ui::bar::bar;
 use crate::ui::controls::{button_row, click_area};
@@ -76,6 +75,10 @@ fn windows(f: &Frame, provider: Provider) -> [(Option<f64>, Option<i64>); 2] {
 
 /// Each companion animates from its own provider's activity and quota.
 pub fn provider_mood(f: &Frame, provider: Provider) -> Mood {
+    // Preserve the prior animation until the first provider snapshot arrives.
+    if !f.snap.loaded {
+        return f.mood;
+    }
     // A weekly limit may be tighter than the current session.
     let hottest = windows(f, provider).into_iter().filter_map(|(pct, _)| pct).reduce(f64::max);
     match provider {
@@ -182,8 +185,6 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         y += GROUP_H + GROUP_GAP;
     }
 
-    let activity = f.snap.usage.as_ref().and_then(|u| u.activity.as_deref());
-    caption(p, ctx, f.logos, above.left() + STAGE.x / 2.0, line_y, f.mood, activity, &super::workers(f.snap));
     if !f.snap.loaded {
         text_mid(p, right, line_y, Align::Max, "reading local usage…", text::TINY, color::FG_MUTED);
     } else {
