@@ -80,6 +80,34 @@ fn render(case: Case) {
     render_inner(case, Prefs::default())
 }
 
+fn costume_case(name: &str) -> Option<&'static str> {
+    if name.contains("christmas") {
+        Some("christmas")
+    } else if name.contains("-elf") {
+        Some("elf")
+    } else if name.contains("-reindeer") {
+        Some("reindeer")
+    } else if name.contains("-spooky") {
+        Some("halloween")
+    } else if name.contains("-snowman") {
+        Some("winter")
+    } else {
+        None
+    }
+}
+
+fn codex_fixture_skin(name: &str) -> &'static crate::components::skins::Skin {
+    crate::components::skins::codex_for_theme(costume_case(name).unwrap_or("classic"), 11, 11)
+}
+
+fn counts_fixture(name: &str) -> crate::reset_history::Counts {
+    if name.contains("reset-counts") {
+        crate::reset_history::Counts { claude_5h: 3, claude_weekly: 1, codex_5h: 8, codex_weekly: 2 }
+    } else {
+        Default::default()
+    }
+}
+
 fn render_inner(case: Case, draft: Prefs) {
     freeze_clock();
     let session = case.snap.limits.as_ref().and_then(|l| crate::components::meter::live(&l.session, None));
@@ -94,8 +122,8 @@ fn render_inner(case: Case, draft: Prefs) {
     let window = {
         let ctx = egui::Context::default();
         let pet = Pet::frozen(&ctx, 0.3);
-        if case.name.contains("christmas") {
-            pet.set_skin(crate::components::skins::find("santa").unwrap());
+        if let Some(theme) = costume_case(case.name) {
+            pet.set_skin(crate::components::skins::active_theme("clauddy", theme, 2026, 11, 11));
         } else if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
             pet.set_skin(skin);
         }
@@ -109,7 +137,9 @@ fn render_inner(case: Case, draft: Prefs) {
             session,
             view: &case.view,
             pet: &pet,
-            codex_skin: if case.name.contains("christmas") { &crate::components::skins::CODEX_CHRISTMAS } else { &crate::components::skins::CODEX },
+            codex_skin: codex_fixture_skin(case.name),
+            effects: &crate::companions::EMPTY,
+            reset_counts: counts_fixture(case.name),
             logos: &logos,
             menu_bar: case.name.ends_with("menu-bar"),
             heads_up: 80.0,
@@ -125,8 +155,8 @@ fn render_inner(case: Case, draft: Prefs) {
     let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
-        if case.name.contains("christmas") {
-            pet.set_skin(crate::components::skins::find("santa").unwrap());
+        if let Some(theme) = costume_case(case.name) {
+            pet.set_skin(crate::components::skins::active_theme("clauddy", theme, 2026, 11, 11));
         } else if let Some(skin) = crate::components::skins::SKINS.iter().find(|s| case.name.starts_with(s.id)) {
             pet.set_skin(skin);
         }
@@ -139,7 +169,9 @@ fn render_inner(case: Case, draft: Prefs) {
             session,
             view: &case.view,
             pet,
-            codex_skin: if case.name.contains("christmas") { &crate::components::skins::CODEX_CHRISTMAS } else { &crate::components::skins::CODEX },
+            codex_skin: codex_fixture_skin(case.name),
+            effects: &crate::companions::EMPTY,
+            reset_counts: counts_fixture(case.name),
             logos,
             menu_bar: case.name.ends_with("menu-bar"),
             heads_up: 80.0,
@@ -357,6 +389,37 @@ pub(super) fn with_codex(mut snap: Snapshot, working: bool) -> Snapshot {
     });
     snap.codex_found = Some((true, Some("plus".into())));
     snap
+}
+
+fn render_costume_case(name: &'static str) {
+    render(Case { name, snap: with_codex(snapshot(usage(false, None), Some(limits(31.0, 52.0))), false), mood: Mood::Idle, view: compact_view() });
+}
+
+#[test]
+fn compact_elf_costume() {
+    render_costume_case("compact-elf");
+}
+#[test]
+fn compact_reindeer_costume() {
+    render_costume_case("compact-reindeer");
+}
+#[test]
+fn compact_spooky_costume() {
+    render_costume_case("compact-spooky");
+}
+#[test]
+fn compact_snowman_costume() {
+    render_costume_case("compact-snowman");
+}
+
+#[test]
+fn compact_separately_observed_reset_history() {
+    render(Case {
+        name: "compact-reset-counts",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(21.0, 47.0))), false),
+        mood: Mood::Idle,
+        view: compact_view(),
+    });
 }
 
 #[test]

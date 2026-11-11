@@ -94,6 +94,10 @@ pub enum Action {
     HidePopover,
     CheckUpdates,
     TogglePetPicker,
+    /// Show an animated personal reaction, without touching any CLI.
+    Pet(crate::components::logos::Provider),
+    /// Play a two-companion interaction.
+    TeamUp,
     InstallUpdate,
     SettingsTab(settings::Tab),
     EditPrefs(crate::prefs::Prefs),
@@ -115,6 +119,9 @@ pub struct Frame<'a> {
     pub view: &'a View,
     pub pet: &'a Pet,
     pub codex_skin: &'static crate::components::skins::Skin,
+    pub effects: &'a crate::companions::Effects,
+    /// Real 5h and weekly reset transitions observed since tracking began.
+    pub reset_counts: crate::reset_history::Counts,
     pub logos: &'a Logos,
     /// the panel is the menu bar's popover: no minimize, no pet-only
     pub menu_bar: bool,

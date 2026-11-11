@@ -58,7 +58,7 @@ fn pane_h(tab: Tab, snap: &Snapshot, view: &super::View) -> f32 {
     match tab {
         Tab::Accounts => TILES_H + 10.0 + CONN_H + if login { LOGIN_H } else { 0.0 },
         Tab::Alerts => block_h(3) + GAP + block_h(1),
-        Tab::Appearance => block_h(1) + GAP + block_h(1) + GAP + block_h(2) + GAP + block_h(2),
+        Tab::Appearance => block_h(1) + GAP + block_h(2) + GAP + block_h(2) + GAP + block_h(2),
         Tab::Resume => block_h(2) + 95.0,
     }
 }
@@ -493,19 +493,31 @@ fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, draft: &Prefs, 
     }
     let theme_y = gy + row;
     let gy = group_label(&p, left, theme_y + GAP, "outfits");
-    let rows = group(&p, left, right, gy, 1);
-    row_label(&p, left, rows[0], "Both pets", false);
+    let rows = group(&p, left, right, gy, 2);
+    row_label(&p, left, rows[0], "Season", false);
     let theme = match draft.theme.as_str() {
         "classic" => 1,
-        "christmas" => 2,
+        "christmas" | "elf" | "reindeer" => 2,
+        "halloween" => 3,
+        "winter" => 4,
         _ => 0,
     };
-    let theme_rect = Rect::from_min_size(Pos2::new(right - 10.0 - 164.0, rows[0] - 12.0), Vec2::new(164.0, 24.0));
-    if let Some(i) = segmented(ui, theme_rect, "holiday-outfit", &["Auto", "Classic", "Xmas"], theme, text::SMALL, &[]) {
-        let next = ["auto", "classic", "christmas"][i];
+    let theme_rect = Rect::from_min_size(Pos2::new(right - 10.0 - 188.0, rows[0] - 12.0), Vec2::new(188.0, 24.0));
+    if let Some(i) = segmented(ui, theme_rect, "season-outfit", &["Auto", "Base", "Xmas", "Boo", "Snow"], theme, text::TINY, &[]) {
+        let next = ["auto", "classic", "christmas", "halloween", "winter"][i];
         actions.push(Action::EditPrefs(Prefs { theme: next.into(), ..draft.clone() }));
     }
-    let below = gy + row;
+    row_label(&p, left, rows[1], "Holiday", false);
+    let variant = match draft.theme.as_str() {
+        "elf" => 1,
+        "reindeer" => 2,
+        _ => 0,
+    };
+    let variant_rect = Rect::from_min_size(Pos2::new(right - 10.0 - 157.0, rows[1] - 12.0), Vec2::new(157.0, 24.0));
+    if let Some(i) = segmented(ui, variant_rect, "holiday-variant", &["Santa", "Elf", "Deer"], variant, text::SMALL, &[]) {
+        actions.push(Action::EditPrefs(Prefs { theme: ["christmas", "elf", "reindeer"][i].into(), ..draft.clone() }));
+    }
+    let below = gy + 2.0 * row;
 
     let gy = group_label(&p, left, below + GAP, "display");
     let rows = group(&p, left, right, gy, 2);

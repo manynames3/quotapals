@@ -202,6 +202,10 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
             f.pet.draw_skin_fit(&inside, pet_area, pet_mood, &skins::SKINS[2]);
         }
     }
+    if click_area(ui, pet_area, ("expanded-pet-reaction", svc.provider.name())).clicked() {
+        actions.push(Action::Pet(svc.provider));
+    }
+    f.effects.decorate(&inside, svc.provider, pet_area);
     // a remark floats over the scene, beside the pet's head
     if let Some((said, shown)) = f.bubble {
         let tip = Pos2::new(stage.left() + 100.0, pet_area.top() + 20.0);

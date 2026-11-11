@@ -73,6 +73,8 @@ fn frame<'a>(s: &'a Shot, pet: &'a Pet, logos: &'a Logos, area: Rect) -> Frame<'
         view: &s.view,
         pet,
         codex_skin: &crate::components::skins::CODEX,
+        effects: &crate::companions::EMPTY,
+        reset_counts: Default::default(),
         logos,
         menu_bar: s.menu_bar,
         heads_up: 80.0,

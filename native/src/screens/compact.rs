@@ -148,22 +148,29 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     let above = Rect::from_min_max(content.left_top(), Pos2::new(content.right(), line_y - LINE_H / 2.0 - 2.0));
     // Each service has its own animated companion in the corresponding row.
     let mut claude_body = Rect::NOTHING;
+    let mut codex_body = Rect::NOTHING;
     let left = above.left() + STAGE.x + 8.0;
     let right = above.right();
     let services = connected(f.snap);
     let mut y = above.center().y - rows_h(services.len()) / 2.0;
     for provider in services {
-        let mood = provider_mood(f, provider);
+        let mood = f.effects.playful_mood(provider_mood(f, provider));
         let pet_area = Rect::from_center_size(Pos2::new(above.left() + STAGE.x / 2.0, y + GROUP_H / 2.0 - 1.0), STAGE);
         halo(p, pet_area, provider.bar().gamma_multiply(0.07));
-        let pet_space = pet_area.shrink2(Vec2::new(2.0, 5.0));
+        let pet_space = pet_area.shrink2(Vec2::new(2.0, 5.0)).translate(f.effects.offset(provider));
+        if click_area(ui, pet_area, ("pet-reaction", provider.name())).clicked() {
+            actions.push(Action::Pet(provider));
+        }
         let body = match provider {
             Provider::Claude => f.pet.draw_fit(p, pet_space, mood),
             Provider::Codex => f.pet.draw_skin_fit(p, pet_space, mood, f.codex_skin),
             Provider::Cursor => f.pet.draw_skin_fit(p, pet_space, mood, &skins::SKINS[2]),
         };
+        f.effects.decorate(p, provider, pet_area);
         if provider == Provider::Claude {
             claude_body = body;
+        } else if provider == Provider::Codex {
+            codex_body = body;
         }
         let label = match mood {
             Mood::Idle => "resting",
@@ -185,13 +192,12 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         let names = if provider == Provider::Cursor { ["Plan", "API"] } else { ["5h", "Week"] };
         draw_window(p, left, right, y + 19.0, names[0], rows[0], provider);
         draw_window(p, left, right, y + 47.0, names[1], rows[1], provider);
-        if provider != Provider::Cursor
-            && let Some(count) = crate::format::projected_five_hour_resets(rows[0].1, rows[1].1)
-        {
+        if provider != Provider::Cursor {
+            let (five, week) = f.reset_counts.pair(provider == Provider::Codex);
             p.text(
                 Pos2::new(right, y + 80.0),
                 Align2::RIGHT_CENTER,
-                format!("≈{count} more 5h resets before weekly"),
+                format!("observed resets · 5h {five} · week {week}"),
                 FontId::proportional(text::TINY),
                 color::FG_SUB,
             );
@@ -199,6 +205,16 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         y += GROUP_H + GROUP_GAP;
     }
 
+    if f.snap.codex.is_some() {
+        let team = Rect::from_center_size(Pos2::new(content.left() + 39.0, line_y), Vec2::new(77.0, 18.0));
+        if click_area(ui, team, "team-up").clicked() {
+            actions.push(Action::TeamUp);
+        }
+        p.text(team.center() + Vec2::new(5.0, 0.0), Align2::CENTER_CENTER, "team up", FontId::proportional(text::TINY), color::FG_SUB);
+        crate::companions::pixel_heart(p, team.center() + Vec2::new(-28.0, -2.0), color::CLAUDE);
+        f.effects.decorate_team(p, Pos2::new(above.left() + STAGE.x / 2.0, above.center().y));
+        f.effects.scene_between(p, claude_body, codex_body);
+    }
     if !f.snap.loaded {
         text_mid(p, right, line_y, Align::Max, "reading local usage…", text::TINY, color::FG_MUTED);
     } else {

@@ -1,6 +1,6 @@
 // Just the pet, floating. Dragging it moves the window; hovering shows the
 // usage glance above its head, whose button (or Enter) opens the compact
-// monitor. A click on the pet itself changes nothing.
+// monitor. Clicking (without dragging) a character now gives it a reaction.
 
 use eframe::egui::{Align2, Context, CursorIcon, FontId, Key, Pos2, Rect, Sense, Ui, Vec2, ViewportCommand};
 
@@ -45,12 +45,21 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
     if resp.drag_started() {
         ctx.send_viewport_cmd(ViewportCommand::StartDrag);
     }
-    let claude_mood = compact::provider_mood(f, Provider::Claude);
-    let mut body = f.pet.draw_fit(ui.painter(), stage.shrink2(Vec2::new(2.0, 9.0)), claude_mood);
+    if resp.clicked() {
+        let on_codex = dual && resp.interact_pointer_pos().is_some_and(|pos| codex_stage.contains(pos));
+        actions.push(Action::Pet(if on_codex { Provider::Codex } else { Provider::Claude }));
+    }
+    let claude_mood = f.effects.playful_mood(compact::provider_mood(f, Provider::Claude));
+    let mut body = f.pet.draw_fit(ui.painter(), stage.shrink2(Vec2::new(2.0, 9.0)).translate(f.effects.offset(Provider::Claude)), claude_mood);
+    f.effects.decorate(ui.painter(), Provider::Claude, stage);
+    let claude_body = body;
+    let mut codex_body = Rect::NOTHING;
     ui.painter().text(Pos2::new(stage.center().x, stage.bottom() + 9.0), Align2::CENTER_CENTER, "Claude", FontId::proportional(text::SMALL), color::CLAUDE);
     if dual {
-        let codex_mood = compact::provider_mood(f, Provider::Codex);
-        let codex_body = f.pet.draw_skin_fit(ui.painter(), codex_stage.shrink2(Vec2::new(2.0, 9.0)), codex_mood, f.codex_skin);
+        let codex_mood = f.effects.playful_mood(compact::provider_mood(f, Provider::Codex));
+        codex_body =
+            f.pet.draw_skin_fit(ui.painter(), codex_stage.shrink2(Vec2::new(2.0, 9.0)).translate(f.effects.offset(Provider::Codex)), codex_mood, f.codex_skin);
+        f.effects.decorate(ui.painter(), Provider::Codex, codex_stage);
         ui.painter().text(
             Pos2::new(codex_stage.center().x, codex_stage.bottom() + 9.0),
             Align2::CENTER_CENTER,
@@ -61,8 +70,21 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
         body = body.union(codex_body);
     }
 
+    // Between the pets: click to cycle high-five, gifts and nap buddies.
+    let team_button = Rect::from_center_size(Pos2::new(rect.center().x, rect.top() + 20.0), Vec2::new(27.0, 21.0));
+    if dual && ui.interact(team_button, ui.scope_id().with("pet-team"), Sense::click()).clicked() {
+        actions.push(Action::TeamUp);
+    }
+    if dual {
+        crate::companions::pixel_heart(ui.painter(), team_button.center(), color::CLAUDE);
+        f.effects.decorate_team(ui.painter(), Pos2::new(rect.center().x, rect.top() + 41.0));
+        f.effects.scene_between(ui.painter(), claude_body, codex_body);
+    }
     // the glance, only while the cursor is over the pet (or the glance)
     let mut hot = vec![body];
+    if dual {
+        hot.push(team_button);
+    }
     let over = over_pet.unwrap_or_else(|| ctx.input(|i| i.pointer.hover_pos().is_some_and(|p| body.contains(p))));
     let shown = ctx.animate_bool_with_time(ui.scope_id().with("glance"), over, 0.16);
     // just above the head, but never off the top of the window
@@ -75,6 +97,9 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
         // the gap between the bubble and the head counts too, so moving up
         // to the button doesn't close the bubble on the way
         hot = vec![body.union(bubble)];
+        if dual {
+            hot.push(team_button);
+        }
     }
     if ctx.input(|i| i.key_pressed(Key::Enter)) {
         actions.push(Action::Resize(Size::Compact));

@@ -42,18 +42,28 @@ The widget is draggable, always on top, and built with **native Rust + egui**—
 
 ## Christmas outfits, expressive pets, and the macOS menu bar
 
-Make the widget feel like your own desk companion. Click the **gear beside X → Look**, then choose:
+Give your work companions some personality. Click the **gear beside X → Look**.
 
-- **Outfits:** **Auto** for the existing seasonal calendar, **Classic** for your normal pets, or **Xmas** to dress both pets right now. Claude wears the upstream Santa costume; Codex gets an original pixel-art Santa hat, scarf, candy cane, and gift.
-- **Lives in:** **Float** (desktop widget), **Bar** (macOS menu-bar icon and dropdown), or **Both** (keep the widget visible *and* use the menu-bar icon). The menu lists each provider's percentages and reset times.
-- **More personality:** Codex has animated blush, occasional heart and sparkles, plus distinct working, resting, sleeping, worried, and exhausted expressions.
+- **Seasonal collections:** Switch between **Auto**, **Base**, **Xmas**, **Boo** (Halloween), and **Snow** (winter). Within Xmas, pick **Santa**, **Elf**, or **Deer**. Both pets dress to match; Claude's underlying costumes come from MIT-licensed Clauddy, while the Codex robot and its costume sheets are original additions. The new snow-day set includes a puffy snowman-style Codex robot.
+- **Lives in:** **Float** (desktop widget), **Bar** (macOS menu bar), or **Both**. The menu lists separate usage windows and their next resets.
+- **Click to interact:** Click either pet to cycle a heart, wave, and dance. Click **team up** in the compact footer (or the little heart between pets in pet-only mode) to cycle **high-five, gift exchange, and nap buddies**.
+- **Automatic emotions:** Busy pets work, low-energy pets sleep, nearing the limit makes them nervous, and a confirmed 5-hour or weekly reset triggers a labeled celebration. Completing an active task makes that specific companion cheer. Reactions are purely visual; they don't issue model requests.
 
 <p align="center">
-  <img src="native/tests/snapshots/compact-christmas.png" width="520" alt="QuotaPals Christmas theme: Santa Claude and a festive Codex robot with usage and projected reset counts" />
+  <img src="native/tests/snapshots/compact-christmas.png" width="520" alt="QuotaPals Christmas theme: Santa Claude and a festive Codex robot with usage, countdowns, and observed reset counts" />
 </p>
 <p align="center"><sub>Christmas mode with illustrative values; choose Xmas in Look to enable it any time.</sub></p>
 
-Each provider also shows **≈N more 5h resets before weekly** when both reset timestamps are known. This is a **projection of future five-hour window boundaries**, not a promise that new quota will be available or that you'll get N full sessions. Windows can shift with activity.
+<p align="center">
+  <img src="native/tests/snapshots/compact-elf.png" width="250" alt="Elf outfit for both Claude and Codex" />
+  <img src="native/tests/snapshots/compact-spooky.png" width="250" alt="Halloween pumpkin Claude and spooky wizard-hat Codex robot" />
+  <img src="native/tests/snapshots/compact-reindeer.png" width="250" alt="Matching reindeer holiday costumes" />
+  <img src="native/tests/snapshots/compact-snowman.png" width="250" alt="Winter snowman-inspired companions" />
+</p>
+
+<sub>The screenshots show test data rather than your live account.</sub>
+
+Both providers now show **independent 5-hour and weekly reset countdowns**, plus **observed reset totals** tracked separately for each window. The counts start at zero when QuotaPals first begins recording; they increase only after a genuine quota decrease following a reset deadline. They are not the number of future resets remaining, which the providers do not publish. Offline or missed resets may not be counted.
 
 ## Keep moving after your limit resets (opt-in)
 

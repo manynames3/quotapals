@@ -46,21 +46,6 @@ pub fn reset_in(ms: i64) -> String {
     format!("{} ({})", countdown(ms), clock(ms))
 }
 
-/// Approximate number of five-hour session-reset boundaries before the
-/// weekly reset. A session window may move or not recur without activity,
-/// so this is a projection—not guaranteed usable credits or future quota.
-pub fn projected_five_hour_resets(session_ms: Option<i64>, week_ms: Option<i64>) -> Option<u32> {
-    const FIVE_HOURS: i64 = 5 * 60 * 60 * 1000;
-    let (session, week) = (session_ms?, week_ms?);
-    if session <= 0 || week <= 0 {
-        return None;
-    }
-    if session >= week {
-        return Some(0);
-    }
-    Some((1 + (week - session - 1) / FIVE_HOURS).min(40) as u32)
-}
-
 /// "37.8M", "1.12B".
 pub fn tokens(n: u64) -> String {
     match n {
@@ -84,9 +69,5 @@ mod tests {
         assert_eq!(tokens(37_800_000), "37.8M");
         assert_eq!(tokens(1_120_000_000), "1.12B");
         assert_eq!(tokens(950), "950");
-        let h = 3_600_000;
-        assert_eq!(projected_five_hour_resets(Some(h), Some(13 * h)), Some(3));
-        assert_eq!(projected_five_hour_resets(Some(4 * h), Some(3 * h)), Some(0));
-        assert_eq!(projected_five_hour_resets(None, Some(3 * h)), None);
     }
 }

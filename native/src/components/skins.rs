@@ -48,8 +48,58 @@ pub static CODEX_CHRISTMAS: Skin = Skin {
     stand_box: [0.10, 0.02, 0.94, 0.94],
 };
 
+/// Variant costumes stay independent from the original Codex identity.
+pub static CODEX_ELF: Skin = Skin {
+    id: "codex-elf",
+    name: "Codex Elf",
+    pack: "christmas",
+    working: include_bytes!("../../assets/codex-elf-working.png"),
+    moods: include_bytes!("../../assets/codex-elf-moods.png"),
+    work_box: [0.02, 0.02, 0.98, 0.96],
+    fire_box: [0.01, 0.01, 0.99, 0.93],
+    stand_box: [0.06, 0.02, 0.98, 0.96],
+};
+pub static CODEX_REINDEER: Skin = Skin {
+    id: "codex-reindeer",
+    name: "Codex Reindeer",
+    pack: "christmas",
+    working: include_bytes!("../../assets/codex-reindeer-working.png"),
+    moods: include_bytes!("../../assets/codex-reindeer-moods.png"),
+    work_box: [0.02, 0.02, 0.98, 0.96],
+    fire_box: [0.01, 0.01, 0.99, 0.93],
+    stand_box: [0.06, 0.02, 0.98, 0.96],
+};
+pub static CODEX_HALLOWEEN: Skin = Skin {
+    id: "codex-halloween",
+    name: "Codex Spooky",
+    pack: "halloween",
+    working: include_bytes!("../../assets/codex-halloween-working.png"),
+    moods: include_bytes!("../../assets/codex-halloween-moods.png"),
+    work_box: [0.02, 0.02, 0.98, 0.96],
+    fire_box: [0.01, 0.01, 0.99, 0.93],
+    stand_box: [0.06, 0.02, 0.98, 0.96],
+};
+pub static CODEX_WINTER: Skin = Skin {
+    id: "codex-winter",
+    name: "Codex Snowman",
+    pack: "winter",
+    working: include_bytes!("../../assets/codex-winter-working.png"),
+    moods: include_bytes!("../../assets/codex-winter-moods.png"),
+    work_box: [0.02, 0.02, 0.98, 0.96],
+    fire_box: [0.01, 0.01, 0.99, 0.93],
+    stand_box: [0.06, 0.02, 0.98, 0.96],
+};
 pub fn codex_for_theme(theme: &str, month: u32, day: u32) -> &'static Skin {
-    if theme == "christmas" || (theme == "auto" && [(12, 24), (12, 25)].contains(&(month, day))) { &CODEX_CHRISTMAS } else { &CODEX }
+    match theme {
+        "christmas" => &CODEX_CHRISTMAS,
+        "elf" => &CODEX_ELF,
+        "reindeer" => &CODEX_REINDEER,
+        "halloween" => &CODEX_HALLOWEEN,
+        "winter" => &CODEX_WINTER,
+        "auto" if (month, day) == (10, 31) => &CODEX_HALLOWEEN,
+        "auto" if [(12, 24), (12, 25)].contains(&(month, day)) => &CODEX_CHRISTMAS,
+        _ => &CODEX,
+    }
 }
 
 pub struct Pack {
@@ -60,6 +110,28 @@ pub struct Pack {
 
 pub const PACKS: &[Pack] =
     &[Pack { id: "everyday", days: &[] }, Pack { id: "halloween", days: &[(10, 31)] }, Pack { id: "christmas", days: &[(12, 24), (12, 25)] }];
+
+/// Claude costume overlays are generated from upstream MIT-licensed sprites.
+pub static CLAUDE_WINTER: Skin = Skin {
+    id: "claude-winter",
+    name: "Claude Snow Day",
+    pack: "winter",
+    working: include_bytes!("../../assets/claude-winter-working.png"),
+    moods: include_bytes!("../../assets/claude-winter-moods.png"),
+    work_box: [0.03, 0.03, 0.96, 0.94],
+    fire_box: [0.03, 0.02, 0.97, 0.90],
+    stand_box: [0.05, 0.06, 0.94, 0.90],
+};
+pub static CLAUDE_ELF: Skin = Skin {
+    id: "claude-elf",
+    name: "Claude Elf",
+    pack: "christmas",
+    working: include_bytes!("../../assets/claude-elf-working.png"),
+    moods: include_bytes!("../../assets/claude-elf-moods.png"),
+    work_box: [0.03, 0.03, 0.96, 0.94],
+    fire_box: [0.03, 0.02, 0.97, 0.90],
+    stand_box: [0.05, 0.06, 0.94, 0.90],
+};
 
 pub const SKINS: &[Skin] = &[
     Skin {
@@ -167,6 +239,10 @@ pub fn active(chosen: &str, year: i32, month: u32, day: u32) -> &'static Skin {
 pub fn active_theme(chosen: &str, theme: &str, year: i32, month: u32, day: u32) -> &'static Skin {
     match theme {
         "christmas" => find("santa").unwrap_or(&SKINS[0]),
+        "elf" => &CLAUDE_ELF,
+        "reindeer" => find("reindeer").unwrap_or(&SKINS[0]),
+        "halloween" => find("pumpkin").unwrap_or(&SKINS[0]),
+        "winter" => &CLAUDE_WINTER,
         "classic" => find(chosen).unwrap_or(&SKINS[0]),
         _ => active(chosen, year, month, day),
     }
@@ -213,8 +289,21 @@ mod tests {
     }
 
     #[test]
+    fn every_costume_changes_both_companions() {
+        for (name, claude, codex) in [
+            ("elf", "claude-elf", "codex-elf"),
+            ("reindeer", "reindeer", "codex-reindeer"),
+            ("halloween", "pumpkin", "codex-halloween"),
+            ("winter", "claude-winter", "codex-winter"),
+        ] {
+            assert_eq!(active_theme("clauddy", name, 2026, 11, 11).id, claude);
+            assert_eq!(codex_for_theme(name, 11, 11).id, codex);
+        }
+    }
+
+    #[test]
     fn every_pet_has_both_sheets_in_their_grids() {
-        for s in SKINS.iter().chain([&CODEX, &CODEX_CHRISTMAS]) {
+        for s in SKINS.iter().chain([&CODEX, &CODEX_CHRISTMAS, &CODEX_ELF, &CODEX_REINDEER, &CODEX_HALLOWEEN, &CODEX_WINTER, &CLAUDE_WINTER, &CLAUDE_ELF]) {
             for (bytes, size) in [(s.working, (1024, 512)), (s.moods, (1024, 1024))] {
                 let r = png::Decoder::new(std::io::Cursor::new(bytes)).read_info().unwrap();
                 assert_eq!((r.info().width, r.info().height), size, "{}", s.id);

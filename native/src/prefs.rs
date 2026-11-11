@@ -105,7 +105,7 @@ impl Prefs {
         self.near_limit = self.near_limit.clamp(1, 100);
         self.fire = self.fire.clamp(1, 99);
         self.zoom = self.zoom.clamp(100, 200);
-        if !matches!(self.theme.as_str(), "auto" | "classic" | "christmas") {
+        if !matches!(self.theme.as_str(), "auto" | "classic" | "christmas" | "elf" | "reindeer" | "halloween" | "winter") {
             self.theme = "auto".into();
         }
         self

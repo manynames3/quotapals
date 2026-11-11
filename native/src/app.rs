@@ -18,6 +18,9 @@ use std::sync::mpsc::Sender;
 
 pub struct App {
     pet: Pet,
+    effects: crate::companions::Effects,
+    history: crate::reset_history::History,
+    was_working: [bool; 2],
     logos: Logos,
     data: Shared,
     commands: Sender<Command>,
@@ -166,6 +169,9 @@ impl App {
         crate::auto_continue::spawn(data.clone());
         App {
             pet: Pet::new(&cc.egui_ctx),
+            effects: crate::companions::Effects::new(),
+            history: crate::reset_history::History::load(),
+            was_working: [false; 2],
             logos: Logos::load(&cc.egui_ctx),
             data,
             commands,
@@ -202,6 +208,8 @@ impl App {
         for a in actions {
             match a {
                 Action::Close => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                Action::Pet(provider) => self.effects.pet(provider),
+                Action::TeamUp => self.effects.team_up(),
                 Action::Resize(s) => {
                     // from Settings, minimize and pet-only leave it the way Cancel does
                     if self.view.settings.take().is_some() {
@@ -388,9 +396,8 @@ impl App {
         if let Some(l) = &snap.limits {
             let week = live(&l.week, snap.limits_at);
             lines.push(line("Claude weekly", week.map(|w| w.0), week.and_then(|w| w.1)));
-            if let Some(n) = crate::format::projected_five_hour_resets(session.and_then(|s| s.1), week.and_then(|w| w.1)) {
-                lines.push(format!("Claude ≈{n} more 5h resets before weekly"));
-            }
+            let (five, weekly) = self.history.counts().pair(false);
+            lines.push(format!("Claude resets observed · 5h {five} · weekly {weekly}"));
             for sc in &l.scoped {
                 let w = live(&crate::auth::Window { pct: sc.pct, reset_ms: sc.reset_ms }, snap.limits_at);
                 lines.push(line(&format!("{} weekly", sc.label), w.map(|w| w.0), w.and_then(|w| w.1)));
@@ -404,9 +411,8 @@ impl App {
             if !c.weekly_only {
                 let (p, r) = ext(&c.weekly);
                 lines.push(line("Codex weekly", p, r));
-                if let Some(n) = crate::format::projected_five_hour_resets(c.session.as_ref().and_then(|s| s.reset_ms), r) {
-                    lines.push(format!("Codex ≈{n} more 5h resets before weekly"));
-                }
+                let (five, weekly) = self.history.counts().pair(true);
+                lines.push(format!("Codex resets observed · 5h {five} · weekly {weekly}"));
             }
         }
         if let Some(c) = &snap.cursor {
@@ -596,6 +602,34 @@ impl eframe::App for App {
         // a new poll: what the pet makes of it
         if snap.seq != self.heard {
             self.heard = snap.seq;
+            let before = self.history.counts();
+            let (claude_reset, codex_reset) = self.history.sample(&snap, crate::usage::now_ms());
+            let after = self.history.counts();
+            if claude_reset {
+                self.effects.celebrate_reset(crate::components::logos::Provider::Claude, after.claude_weekly > before.claude_weekly);
+            }
+            if codex_reset {
+                self.effects.celebrate_reset(crate::components::logos::Provider::Codex, after.codex_weekly > before.codex_weekly);
+            }
+            if claude_reset && codex_reset {
+                self.effects.team_up();
+            }
+            let working = [snap.usage.as_ref().is_some_and(|u| u.active), snap.codex.as_ref().is_some_and(|c| c.active)];
+            let mut finished = 0;
+            for (i, provider) in [crate::components::logos::Provider::Claude, crate::components::logos::Provider::Codex].into_iter().enumerate() {
+                if self.was_working[i] && !working[i] {
+                    // A verified quota reset celebration is more important
+                    // than an ordinary completed task.
+                    if ![claude_reset, codex_reset][i] {
+                        self.effects.celebrate_finished(provider);
+                    }
+                    finished += 1;
+                }
+            }
+            if finished == 2 {
+                self.effects.team_up();
+            }
+            self.was_working = working;
             self.listen(&snap, mood, session, size);
         }
         let shown = self.said.as_ref().map_or(0.0, Said::shown);
@@ -616,6 +650,8 @@ impl eframe::App for App {
             view: &self.view,
             pet: &self.pet,
             codex_skin,
+            effects: &self.effects,
+            reset_counts: self.history.counts(),
             logos: &self.logos,
             menu_bar: self.prefs.menu_bar,
             heads_up: self.prefs.heads_up.min(self.prefs.near_limit) as f64,
@@ -667,6 +703,9 @@ impl eframe::App for App {
             companion_next = companion_next.min(self.pet.next_frame(compact::provider_mood(&f, crate::screens::shown(&f))));
         }
         self.apply(&ctx, actions);
+        if self.effects.animating() {
+            ctx.request_repaint_after(Duration::from_millis(60));
+        }
         self.menu_bar(&ctx, &snap, session);
         self.shoot(&ctx);
         let mut next = self.pet.next_frame(mood).min(companion_next).min(Duration::from_secs(30));
