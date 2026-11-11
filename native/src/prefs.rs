@@ -18,6 +18,10 @@ pub struct Prefs {
     pub codex: bool,
     /// Cursor tracked alongside Claude
     pub cursor: bool,
+    /// Opt-in automatic continuation for usage-paused Claude Code sessions.
+    pub resume_claude: bool,
+    /// Opt-in automatic continuation for usage-paused Codex sessions.
+    pub resume_codex: bool,
     /// the widget's scale, 100-200 %
     pub zoom: i32,
     /// the speech bubble (on unless turned off)
@@ -40,6 +44,8 @@ impl Default for Prefs {
             menu_bar: false,
             codex: false,
             cursor: false,
+            resume_claude: false,
+            resume_codex: false,
             zoom: 100,
             talk: true,
             sound: false,
@@ -70,6 +76,8 @@ impl Prefs {
             menu_bar: v["mode"].as_str() == Some("menubar"),
             codex: v.pointer("/codex/enabled").and_then(Value::as_bool).unwrap_or(false),
             cursor: v.pointer("/cursor/enabled").and_then(Value::as_bool).unwrap_or(false),
+            resume_claude: v.pointer("/autoContinue/claude").and_then(Value::as_bool).unwrap_or(false),
+            resume_codex: v.pointer("/autoContinue/codex").and_then(Value::as_bool).unwrap_or(false),
             talk: v["talk"].as_bool() != Some(false),
             pet: v["pet"].as_str().unwrap_or(crate::components::skins::DEFAULT).to_string(),
             sound: v["sound"].as_bool().unwrap_or(false),
@@ -106,6 +114,11 @@ impl Prefs {
         v["soundMutedUntil"] = json!(self.muted_until);
         v["pet"] = json!(self.pet);
         v["mode"] = json!(if self.menu_bar { "menubar" } else { "floating" });
+        if !v["autoContinue"].is_object() {
+            v["autoContinue"] = json!({});
+        }
+        v["autoContinue"]["claude"] = json!(self.resume_claude);
+        v["autoContinue"]["codex"] = json!(self.resume_codex);
         for (key, on) in [("codex", self.codex), ("cursor", self.cursor)] {
             if !v[key].is_object() {
                 v[key] = json!({});
@@ -141,6 +154,8 @@ mod tests {
                 menu_bar: false,
                 codex: false,
                 cursor: false,
+                resume_claude: false,
+                resume_codex: false,
                 zoom: 100,
                 talk: true,
                 sound: false,
@@ -165,6 +180,18 @@ mod tests {
         assert_eq!(v["fireThreshold"], 75);
         assert_eq!(v["pet"], "pumpkin");
         assert_eq!(v["plan"], "max5x");
+    }
+
+    #[test]
+    fn auto_continue_is_opt_in_and_persists_independently() {
+        let mut prefs = Prefs::default();
+        assert!(!prefs.resume_claude && !prefs.resume_codex);
+        prefs.resume_codex = true;
+        let mut config = json!({"preserve": {"other": 9}});
+        prefs.merge_into(&mut config);
+        let loaded = Prefs::from_value(&config);
+        assert!(!loaded.resume_claude && loaded.resume_codex);
+        assert_eq!(config["preserve"]["other"], 9);
     }
 
     #[test]

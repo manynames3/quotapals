@@ -11,6 +11,12 @@ The main [README](README.md) covers the experience and public source-install pro
 - The macOS fixed window canvas has been widened to fit the dual HUD.
 - The custom bundle identifier is `dev.manynames3.quotapals` so it won't overwrite the official Clauddy app. Upstream auto-update installation is disabled for this ID; changes should be rebuilt from this fork.
 
+## Auto-continue integration
+
+`native/src/auto_continue.rs` adapts the rate-limit pause detection/recovery workflow from [CodexReset](https://github.com/boyso/codex-reset) (MIT © 2026 BOYSO). This is independently implemented in Rust rather than vendoring the Swift app-server/GUI engine. The automation worker runs alongside the normal poller, but both provider switches default to off; user settings are saved under `autoContinue.claude` and `autoContinue.codex` in the existing `config.json`. The worker requires a recent, valid, below-limit quota reading in a window that opened after the recorded failure. It uses `claude -p --resume` and `codex exec resume` with explicit session IDs, never a shell. The per-session deduplication record is private to `~/.claude-usage-monitor/auto-continue-state.json`.
+
+Only the latest turn's explicit quota error qualifies; unknown failures and completed turns are deliberately skipped. CodexReset must not have its own auto-continue active simultaneously. This feature has unit and visual coverage, but its real-world behavior depends on the installed CLIs and local log formats, so no fully autonomous success guarantee is claimed.
+
 ## Architecture and data
 
 The native UI is Rust + `eframe/egui`. It reuses the original upstream account and Codex readers rather than approximating quota using token counts. Claude usage requires authorized access to its reported limits; Codex uses local app-server/session data and may have delayed or missing readings. Local app data is stored in `~/.claude-usage-monitor/`, **outside the Git checkout**. Do not commit that directory or authentication files.

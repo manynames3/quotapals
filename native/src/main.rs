@@ -12,6 +12,7 @@ mod accounts;
 mod alerts;
 mod app;
 mod auth;
+mod auto_continue;
 mod codex;
 mod components;
 mod cursor;
@@ -89,7 +90,7 @@ fn main() -> eframe::Result {
     }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Clauddy")
+            .with_title("QuotaPals")
             .with_inner_size(app::initial_size())
             // living in the menu bar, the panel waits for a click on the icon
             .with_visible(!prefs::Prefs::load().menu_bar)
@@ -100,5 +101,5 @@ fn main() -> eframe::Result {
             .with_resizable(false),
         ..Default::default()
     };
-    eframe::run_native("Clauddy", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
+    eframe::run_native("QuotaPals", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
 }

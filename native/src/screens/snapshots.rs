@@ -288,6 +288,19 @@ fn settings_alerts_with_an_unsaved_edit() {
 }
 
 #[test]
+fn settings_resume_off_by_default() {
+    let snap = snapshot(usage(false, None), Some(limits(42.0, 68.0)));
+    render(Case { name: "settings-resume", snap, mood: Mood::Idle, view: settings_view(settings::Tab::Resume) });
+}
+
+#[test]
+fn settings_resume_with_both_providers_opted_in() {
+    let snap = snapshot(usage(false, None), Some(limits(42.0, 68.0)));
+    let draft = Prefs { resume_claude: true, resume_codex: true, ..Prefs::default() };
+    render_with(Case { name: "settings-resume-enabled", snap, mood: Mood::Idle, view: settings_view(settings::Tab::Resume) }, draft);
+}
+
+#[test]
 fn settings_appearance() {
     let snap = snapshot(usage(false, None), Some(limits(42.0, 68.0)));
     render(Case { name: "settings-appearance", snap, mood: Mood::Idle, view: settings_view(settings::Tab::Appearance) });

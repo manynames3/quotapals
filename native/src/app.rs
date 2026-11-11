@@ -163,6 +163,7 @@ impl App {
         crate::platform::leftovers::clear();
         let settings = Settings::load();
         let (data, commands) = poller::spawn(cc.egui_ctx.clone(), settings.clone());
+        crate::auto_continue::spawn(data.clone());
         App {
             pet: Pet::new(&cc.egui_ctx),
             logos: Logos::load(&cc.egui_ctx),

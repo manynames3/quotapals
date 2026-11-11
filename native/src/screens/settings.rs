@@ -28,9 +28,10 @@ pub enum Tab {
     Accounts,
     Alerts,
     Appearance,
+    Resume,
 }
 
-const TABS: [(Tab, &str); 3] = [(Tab::Accounts, "Accounts"), (Tab::Alerts, "Alerts"), (Tab::Appearance, "Appearance")];
+const TABS: [(Tab, &str); 4] = [(Tab::Accounts, "Accounts"), (Tab::Alerts, "Alerts"), (Tab::Appearance, "Look"), (Tab::Resume, "Resume")];
 
 const CARD_W: f32 = 280.0;
 const SIDE: f32 = 16.0;
@@ -58,6 +59,7 @@ fn pane_h(tab: Tab, snap: &Snapshot, view: &super::View) -> f32 {
         Tab::Accounts => TILES_H + 10.0 + CONN_H + if login { LOGIN_H } else { 0.0 },
         Tab::Alerts => block_h(3) + GAP + block_h(1),
         Tab::Appearance => block_h(1) + GAP + block_h(2) + GAP + block_h(2),
+        Tab::Resume => block_h(2) + 95.0,
     }
 }
 
@@ -94,6 +96,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
         Tab::Accounts => accounts(ui, f, left, right, y, code, saved, &mut actions),
         Tab::Alerts => alerts(ui, left, right, y, draft, &mut actions),
         Tab::Appearance => appearance(ui, f, left, right, y, draft, &mut actions),
+        Tab::Resume => resume_options(ui, left, right, y, draft, &mut actions),
     }
     y += pane_h(tab, f.snap, f.view);
 
@@ -119,7 +122,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
 
     // the version, and the update check
     let vy = y + 12.0 + 6.0;
-    text_mid(&p, left, vy, Align::Min, &format!("clauddy v{}", env!("CARGO_PKG_VERSION")), text::CAPTION, color::FG_MUTED);
+    text_mid(&p, left, vy, Align::Min, &format!("QuotaPals v{}", env!("CARGO_PKG_VERSION")), text::CAPTION, color::FG_MUTED);
     use crate::updates::Update;
     let (label, act) = match &f.update {
         Update::Idle | Update::UpToDate | Update::Failed(_) => (
@@ -344,6 +347,37 @@ fn ext_card(ui: &Ui, f: &Frame, provider: Provider, left: f32, right: f32, y: f3
                 actions.push(set(true));
             }
         }
+    }
+}
+
+/// Explicit opt-in, provider by provider. Off by default; only conversations
+/// whose latest turn failed with a documented usage-limit error are eligible.
+fn resume_options(ui: &Ui, left: f32, right: f32, y: f32, draft: &Prefs, actions: &mut Vec<Action>) {
+    let p = ui.painter().clone();
+    let gy = group_label(&p, left, y, "after usage resets");
+    let rows = group(&p, left, right, gy, 2);
+    row_label(&p, left, rows[0], "Claude Code", false);
+    if toggle(ui, right - 10.0, rows[0], "resume-claude", draft.resume_claude, true).clicked() {
+        actions.push(Action::EditPrefs(Prefs { resume_claude: !draft.resume_claude, ..draft.clone() }));
+    }
+    row_label(&p, left, rows[1], "Codex", false);
+    if toggle(ui, right - 10.0, rows[1], "resume-codex", draft.resume_codex, true).clicked() {
+        actions.push(Action::EditPrefs(Prefs { resume_codex: !draft.resume_codex, ..draft.clone() }));
+    }
+
+    let line_y = gy + 2.0 * crate::ui::group::ROW + 27.0;
+    let clip = p.with_clip_rect(Rect::from_min_max(Pos2::new(left, line_y - 9.0), Pos2::new(right, line_y + 76.0)));
+    for (i, note) in [
+        "OFF by default. Resumes ALL chats whose",
+        "latest turn failed due to a usage limit",
+        "after fresh quota recovery; uses your CLI.",
+        "Disable CodexReset's own auto-continue",
+        "to avoid duplicates. QuotaPals stays open.",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        text_mid(&clip, left, line_y + i as f32 * 15.0, Align::Min, note, text::SMALL, color::FG_MUTED);
     }
 }
 

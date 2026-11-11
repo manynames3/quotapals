@@ -40,6 +40,21 @@ Prefer something smaller? Switch to **pet-only mode**: both characters float tog
 
 The widget is draggable, always on top, and built with **native Rust + egui**—no browser-based dashboard to keep open. Expand it for the original detailed breakdown, or keep the compact four-limit view in sight.
 
+## Keep moving after your limit resets (opt-in)
+
+You shouldn't have to watch a clock just to get back to work. QuotaPals adds **Auto-continue after reset** for both Claude Code and Codex, adapted from the recovery workflow in [CodexReset by BOYSO](https://github.com/boyso/codex-reset).
+
+Open **Settings → Resume** and turn on **Claude Code**, **Codex**, or both. Each switch is **off by default**. QuotaPals checks the local session history for a turn that **ended in a confirmed usage-limit error**, then waits for fresh quota data showing that a new usage window has opened. Only then does it send a short “Continue where you left off” message to the affected session.
+
+- **Codex:** Detects failed `usageLimitExceeded` turns in the local read-only Codex history database and resumes through `codex exec resume`.
+- **Claude Code:** Detects explicit API-limit failures in local Claude Code session logs, then uses `claude --resume` in non-interactive mode.
+- **Safety:** No auto-continuation without opt-in. Completed or actively continued turns aren't intentionally retried. Resumptions are recorded to prevent duplicate sends across restarts. QuotaPals does not bypass permissions.
+- **Availability:** QuotaPals must remain running, the relevant CLI must be installed, and both the error and recovery must be verifiable. Some providers or failure formats may not be detectable. **A dispatched command is not proof the session completed successfully.**
+
+**Already running CodexReset?** Turn off its own auto-continue switch (or quit CodexReset) before enabling this in QuotaPals, to avoid competing recovery attempts. CodexReset's more elaborate chat-selection and local app-server/GUI fallback features are **not yet replicated** here; this version targets recent conversations whose latest turn specifically failed because of a rate limit.
+
+The local activity log is stored at `~/.claude-usage-monitor/auto-continue.log`. Automated turns can consume usage and, within the CLI's normal permissions, make project changes. This feature is new and should be monitored until validated against a real reset.
+
 ## Get running on macOS
 
 This fork is currently **source-install only**: no downloadable binary release or notarized installer is published yet. It has been built and tested on an Apple Silicon Mac.
@@ -83,6 +98,8 @@ The screenshot fixtures live in [`native/tests/snapshots/`](native/tests/snapsho
 ## Credits & license
 
 QuotaPals builds on [**Clauddy** by Renato Augusto](https://github.com/renatoaug/claude-usage-monitor). The original native app, Claude pet, usage readers, and many UI components come from that MIT-licensed project. This fork adds the simultaneous four-limit dashboard and the independently animated Codex companion.
+
+The auto-continue workflow was adapted from [**CodexReset** by BOYSO](https://github.com/boyso/codex-reset) (MIT). It inspired the recovery gating and read-only pause detection; QuotaPals adds its own Rust worker and a Claude Code CLI path. See [third-party notices](THIRD_PARTY_NOTICES.md).
 
 [REA](https://github.com/morluto/rea) was used to analyze the inherited JavaScript launcher. The actual dual-provider UI changes were made directly to the open-source Rust app; REA is **not** a runtime dependency.
 
