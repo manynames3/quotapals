@@ -1,6 +1,6 @@
 # Clauddy Dual — macOS floating Claude + Codex HUD
 
-This is a local fork of [Clauddy](https://github.com/renatoaug/claude-usage-monitor). It keeps the animated pixel pet while displaying both providers' session and weekly rate limits without switching tabs.
+This is a local fork of [Clauddy](https://github.com/renatoaug/claude-usage-monitor). It keeps the orange Clauddy pet and adds a completely original animated mint-green Codex robot. Both companions appear simultaneously alongside their own session and weekly rate limits, without switching tabs.
 
 ## Installed app
 
@@ -8,7 +8,7 @@ This is a local fork of [Clauddy](https://github.com/renatoaug/claude-usage-moni
 
 Launch from Finder or run `open "$HOME/Applications/Clauddy Dual.app"`. The floating compact view is the default for new installs. Use the expand button for Clauddy's original detailed view, and drag the widget to position it.
 
-The card shows **percentage used**, progress bars, and **time remaining until reset**, separately for the 5-hour/session and weekly windows of Claude and Codex. Missing/stale readings show as unavailable rather than 0%. Codex must be enabled under Settings > Codex (already enabled on this Mac). Claude's account usage requires a separate OAuth connection from the app. Codex usage depends on the local Codex app-server/logs, which can sometimes lag or be absent.
+The card shows **percentage used**, progress bars, and **time remaining until reset**, separately for the 5-hour/session and weekly windows of Claude and Codex. Each character animates separately based on its provider's live activity and highest used quota (including weekly). Pet-only mode shows both side by side, and expanded mode uses the selected provider's matching character. Codex's original sprite sheet artwork and reproducible generator are in `native/assets/codex-{moods,working}.png` and `tools/generate_codex_pet.py`. Missing/stale readings show as unavailable rather than 0%. Codex must be enabled under Settings > Codex (already enabled on this Mac). Claude's account usage requires a separate OAuth connection from the app. Codex usage depends on the local Codex app-server/logs, which can sometimes lag or be absent.
 
 ## Development and rebuild
 

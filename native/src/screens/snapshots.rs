@@ -110,6 +110,7 @@ fn render_inner(case: Case, draft: Prefs) {
             logos: &logos,
             menu_bar: case.name.ends_with("menu-bar"),
             heads_up: 80.0,
+            fire_threshold: 90.0,
             bubble: case
                 .name
                 .ends_with("-talking")
@@ -136,6 +137,7 @@ fn render_inner(case: Case, draft: Prefs) {
             logos,
             menu_bar: case.name.ends_with("menu-bar"),
             heads_up: 80.0,
+            fire_threshold: 90.0,
             bubble: case
                 .name
                 .ends_with("-talking")
@@ -346,6 +348,27 @@ fn compact_with_codex() {
         mood: Mood::Working,
         view: compact_view(),
     });
+}
+
+#[test]
+fn compact_codex_working_while_claude_rests() {
+    render(Case {
+        name: "compact-codex-only-working",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(42.0, 68.0))), true),
+        mood: Mood::Working,
+        view: compact_view(),
+    });
+}
+
+#[test]
+fn compact_both_weekly_limits_near_exhausted() {
+    let mut snap = with_codex(snapshot(usage(false, None), Some(limits(12.0, 96.0))), false);
+    if let Some(c) = &mut snap.codex
+        && let Some(w) = &mut c.weekly
+    {
+        w.pct = Some(93.0);
+    }
+    render(Case { name: "compact-high-weekly", snap, mood: Mood::Fire, view: compact_view() });
 }
 
 #[test]

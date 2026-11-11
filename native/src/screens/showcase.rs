@@ -75,6 +75,7 @@ fn frame<'a>(s: &'a Shot, pet: &'a Pet, logos: &'a Logos, area: Rect) -> Frame<'
         logos,
         menu_bar: s.menu_bar,
         heads_up: 80.0,
+        fire_threshold: 90.0,
         bubble: s.bubble.as_ref().map(|(t, a)| (t.as_str(), *a)),
         update: Default::default(),
     }

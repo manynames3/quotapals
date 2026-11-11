@@ -3,7 +3,7 @@
 
 use eframe::egui::{self, Align2, Context, CornerRadius, FontId, Pos2, Rect, Stroke, StrokeKind, Ui, Vec2};
 
-use super::{Action, Frame, MARGIN, Size, View, connected, shown};
+use super::{Action, Frame, MARGIN, Size, View, compact, connected, shown};
 use crate::components::account::account_chip;
 use crate::components::account_menu::{MenuPick, account_label, account_menu, menu_rect};
 use crate::components::breakdown::{self, section};
@@ -15,6 +15,7 @@ use crate::components::meter::{Meter, codex_meters, cursor_meters};
 use crate::components::night_sky::night_sky;
 use crate::components::pet::Mood;
 use crate::components::reminder;
+use crate::components::skins;
 use crate::components::status::{STATUS_H, status_line};
 use crate::poller::Login;
 use crate::poller::Snapshot;
@@ -182,7 +183,8 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
     pane(p, stage);
     let inside = p.with_clip_rect(stage);
     night_sky(&inside, stage);
-    let pet_area = if f.mood == Mood::Working {
+    let pet_mood = compact::provider_mood(f, svc.provider);
+    let pet_area = if pet_mood == Mood::Working {
         Rect::from_min_max(Pos2::new(stage.left() + 14.0, stage.top() + 8.0), Pos2::new(stage.left() + 144.0, stage.bottom() - 2.0))
     } else {
         let cell = 8.5;
@@ -191,7 +193,15 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
             Pos2::new(stage.left() + 26.0 + 11.0 * cell, stage.bottom() - 3.0 + cell),
         )
     };
-    f.pet.draw(&inside, pet_area, f.mood);
+    match svc.provider {
+        Provider::Claude => f.pet.draw(&inside, pet_area, pet_mood),
+        Provider::Codex => {
+            f.pet.draw_skin_fit(&inside, pet_area, pet_mood, &skins::CODEX);
+        }
+        Provider::Cursor => {
+            f.pet.draw_skin_fit(&inside, pet_area, pet_mood, &skins::SKINS[2]);
+        }
+    }
     // a remark floats over the scene, beside the pet's head
     if let Some((said, shown)) = f.bubble {
         let tip = Pos2::new(stage.left() + 100.0, pet_area.top() + 20.0);
@@ -202,11 +212,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, code: &mut String) -> Vec<Act
 
     // status line: the shown service's state and tokens
     let activity = svc.activity;
-    let mood = match (svc.working, f.mood) {
-        (true, _) => Mood::Working,
-        (false, Mood::Working) => Mood::Idle, // the other service is the one working
-        (false, m) => m,
-    };
+    let mood = if svc.working { Mood::Working } else { pet_mood };
     status_line(p, left, right, stage.bottom() + 17.0, mood, activity, svc.today, svc.live);
     let mut y = stage.bottom() + STATUS_H;
     hairline(p, left, right, y);

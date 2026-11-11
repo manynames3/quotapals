@@ -23,6 +23,19 @@ pub struct Skin {
 
 pub const DEFAULT: &str = "clauddy";
 
+/// A separate, original robot companion for Codex. Not a Claude costume.
+/// Its 256px frames use the same 4×2/4×4 animations as the other pets.
+pub static CODEX: Skin = Skin {
+    id: "codex-companion",
+    name: "Codex Companion",
+    pack: "everyday",
+    working: include_bytes!("../../assets/codex-working.png"),
+    moods: include_bytes!("../../assets/codex-moods.png"),
+    work_box: [0.08, 0.06, 0.93, 0.95],
+    fire_box: [0.04, 0.015, 0.96, 0.91],
+    stand_box: [0.13, 0.05, 0.87, 0.93],
+};
+
 pub struct Pack {
     pub id: &'static str,
     /// (month, day) it takes over on
@@ -168,7 +181,7 @@ mod tests {
 
     #[test]
     fn every_pet_has_both_sheets_in_their_grids() {
-        for s in SKINS {
+        for s in SKINS.iter().chain(std::iter::once(&CODEX)) {
             for (bytes, size) in [(s.working, (1024, 512)), (s.moods, (1024, 1024))] {
                 let r = png::Decoder::new(std::io::Cursor::new(bytes)).read_info().unwrap();
                 assert_eq!((r.info().width, r.info().height), size, "{}", s.id);

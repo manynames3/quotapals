@@ -596,6 +596,7 @@ impl eframe::App for App {
             logos: &self.logos,
             menu_bar: self.prefs.menu_bar,
             heads_up: self.prefs.heads_up.min(self.prefs.near_limit) as f64,
+            fire_threshold: self.settings.fire_threshold,
             bubble,
             update: self.updater.state(),
         };
@@ -633,10 +634,19 @@ impl eframe::App for App {
             self.passthrough = through;
             ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(through));
         }
+        // Compute individual animation deadlines before mutating the app.
+        let mut companion_next = Duration::from_secs(30);
+        if matches!(size, Size::Compact | Size::PetOnly) {
+            for provider in crate::screens::connected(&snap) {
+                companion_next = companion_next.min(self.pet.next_frame(compact::provider_mood(&f, provider)));
+            }
+        } else if size == Size::Expanded {
+            companion_next = companion_next.min(self.pet.next_frame(compact::provider_mood(&f, crate::screens::shown(&f))));
+        }
         self.apply(&ctx, actions);
         self.menu_bar(&ctx, &snap, session);
         self.shoot(&ctx);
-        let mut next = self.pet.next_frame(mood).min(Duration::from_secs(30));
+        let mut next = self.pet.next_frame(mood).min(companion_next).min(Duration::from_secs(30));
         // a refused reminder's note goes away on time
         if let Some(left) = crate::components::reminder::error_left(&snap) {
             next = next.min(left);

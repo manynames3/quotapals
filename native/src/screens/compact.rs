@@ -7,7 +7,9 @@ use super::{Action, Frame, MARGIN, Size, connected, sessions, shown};
 use crate::components::account::account;
 use crate::components::logos::Provider;
 use crate::components::meter;
+use crate::components::pet::Mood;
 use crate::components::service_row::ServiceRow;
+use crate::components::skins;
 use crate::components::status::caption;
 use crate::format::countdown;
 use crate::ui::bar::bar;
@@ -72,6 +74,29 @@ fn windows(f: &Frame, provider: Provider) -> [(Option<f64>, Option<i64>); 2] {
     }
 }
 
+/// Each companion animates from its own provider's activity and quota.
+pub fn provider_mood(f: &Frame, provider: Provider) -> Mood {
+    // A weekly limit may be tighter than the current session.
+    let hottest = windows(f, provider).into_iter().filter_map(|(pct, _)| pct).reduce(f64::max);
+    match provider {
+        Provider::Claude => crate::app::mood_for(f.snap.usage.as_ref(), hottest, f.fire_threshold),
+        Provider::Codex => {
+            if f.snap.codex.as_ref().is_some_and(|c| c.active) {
+                Mood::Working
+            } else {
+                crate::app::mood_for(None, hottest, f.fire_threshold)
+            }
+        }
+        Provider::Cursor => {
+            if f.snap.cursor.as_ref().is_some_and(|c| c.active) {
+                Mood::Working
+            } else {
+                crate::app::mood_for(None, hottest, f.fire_threshold)
+            }
+        }
+    }
+}
+
 fn draw_window(p: &eframe::egui::Painter, left: f32, right: f32, top: f32, label: &str, value: (Option<f64>, Option<i64>), provider: Provider) {
     let (pct, reset) = value;
     let at = top + 8.0;
@@ -115,17 +140,33 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
 
     let line_y = content.bottom() - 6.0;
     let above = Rect::from_min_max(content.left_top(), Pos2::new(content.right(), line_y - LINE_H / 2.0 - 2.0));
-    let pet_area = Rect::from_center_size(Pos2::new(above.left() + STAGE.x / 2.0, above.center().y), STAGE);
-    halo(p, pet_area, color::CLAUDE_BAR.gamma_multiply(0.06));
-    let body = f.pet.draw_fit(p, pet_area.shrink2(Vec2::new(2.0, 2.0)), f.mood);
-    let activity = f.snap.usage.as_ref().and_then(|u| u.activity.as_deref());
-    caption(p, ctx, f.logos, pet_area.center().x, line_y, f.mood, activity, &super::workers(f.snap));
-
+    // Each service has its own animated companion in the corresponding row.
+    let mut claude_body = Rect::NOTHING;
     let left = above.left() + STAGE.x + 8.0;
     let right = above.right();
     let services = connected(f.snap);
     let mut y = above.center().y - rows_h(services.len()) / 2.0;
     for provider in services {
+        let mood = provider_mood(f, provider);
+        let pet_area = Rect::from_center_size(Pos2::new(above.left() + STAGE.x / 2.0, y + GROUP_H / 2.0 - 1.0), STAGE);
+        halo(p, pet_area, provider.bar().gamma_multiply(0.07));
+        let pet_space = pet_area.shrink2(Vec2::new(2.0, 5.0));
+        let body = match provider {
+            Provider::Claude => f.pet.draw_fit(p, pet_space, mood),
+            Provider::Codex => f.pet.draw_skin_fit(p, pet_space, mood, &skins::CODEX),
+            Provider::Cursor => f.pet.draw_skin_fit(p, pet_space, mood, &skins::SKINS[2]),
+        };
+        if provider == Provider::Claude {
+            claude_body = body;
+        }
+        let label = match mood {
+            Mood::Idle => "resting",
+            Mood::Working => "working",
+            Mood::Fire => "near limit",
+            Mood::Tired => "limit reached",
+            Mood::Sleeping => "sleeping",
+        };
+        p.text(Pos2::new(pet_area.center().x, y + GROUP_H - 4.0), Align2::CENTER_CENTER, label, FontId::proportional(text::TINY), color::FG_SUB);
         if click_area(ui, Rect::from_min_size(Pos2::new(left, y), Vec2::new(right - left, GROUP_H)), ("compact-provider", provider.name())).clicked() {
             actions.push(Action::SelectProvider(provider));
         }
@@ -141,6 +182,8 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         y += GROUP_H + GROUP_GAP;
     }
 
+    let activity = f.snap.usage.as_ref().and_then(|u| u.activity.as_deref());
+    caption(p, ctx, f.logos, above.left() + STAGE.x / 2.0, line_y, f.mood, activity, &super::workers(f.snap));
     if !f.snap.loaded {
         text_mid(p, right, line_y, Align::Max, "reading local usage…", text::TINY, color::FG_MUTED);
     } else {
@@ -148,7 +191,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
     }
 
     if let Some((said, progress)) = f.bubble {
-        let tip = Pos2::new(body.center().x + 8.0, body.top() + 4.0);
+        let tip = Pos2::new(claude_body.center().x + 8.0, claude_body.top() + 4.0);
         if crate::components::bubble::bubble(ui, said, tip, 18.0, rect.width() - 24.0, rect.shrink(6.0), progress) {
             actions.push(Action::DismissBubble);
         }

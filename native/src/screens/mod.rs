@@ -119,6 +119,8 @@ pub struct Frame<'a> {
     pub menu_bar: bool,
     /// the lowest alert threshold: from here a reset reminder is offered
     pub heads_up: f64,
+    /// the user's configured fire threshold; each companion has its own mood
+    pub fire_threshold: f64,
     /// what the pet is saying, and how far it has appeared (0..1)
     pub bubble: Option<(&'a str, f32)>,
     /// where the update check stands
