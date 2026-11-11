@@ -1,4 +1,4 @@
-# Clauddy Dual: developer notes
+# QuotaPals: developer notes
 
 The main [README](README.md) covers the experience and public source-install process. This file documents how the fork differs from upstream and how to maintain it.
 
@@ -9,7 +9,7 @@ The main [README](README.md) covers the experience and public source-install pro
 - Characters react independently to activity and whichever available limit (session or weekly) is highest. Pet-only mode shows both side by side, and the expanded view shows the selected provider's sprite.
 - Unknown or expired readings are displayed as unavailable, not as zero.
 - The macOS fixed window canvas has been widened to fit the dual HUD.
-- The custom bundle identifier is `dev.aiden.clauddy-dual` so it won't overwrite the official Clauddy app. Upstream auto-update installation is disabled for this ID; changes should be rebuilt from this fork.
+- The custom bundle identifier is `dev.manynames3.quotapals` so it won't overwrite the official Clauddy app. Upstream auto-update installation is disabled for this ID; changes should be rebuilt from this fork.
 
 ## Architecture and data
 
@@ -22,7 +22,7 @@ python3 -m pip install pillow
 python3 tools/generate_codex_pet.py
 ```
 
-For native macOS builds, install [Rust](https://rustup.rs/) and run `./scripts/install-dual-macos.sh` from the repository root. Run the same checks as the [main README](README.md#build-test-and-customize) before publishing changes.
+For native macOS builds, install [Rust](https://rustup.rs/) and run `./scripts/install-quotapals-macos.sh` from the repository root. Run the same checks as the [main README](README.md#build-test-and-customize) before publishing changes.
 
 ## Publishing policy
 

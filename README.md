@@ -1,11 +1,11 @@
-# Clauddy Dual
+# QuotaPals
 
 **Two assistants. Four limits. One glance.**
 
-Stop interrupting your work to check whether Claude Code or Codex is about to run out. Clauddy Dual gives both a permanent spot on your Mac: live usage readings, reset countdowns, and two tiny companions that react as you work.
+Stop interrupting your work to check whether Claude Code or Codex is about to run out. QuotaPals gives both a permanent spot on your Mac: live usage readings, reset countdowns, and two tiny companions that react as you work.
 
 <p align="center">
-  <img src="native/tests/snapshots/compact-codex.png" width="690" alt="Clauddy Dual floating dashboard: orange Claude and mint-green Codex pets beside their 5-hour and weekly usage bars and reset timers">
+  <img src="native/tests/snapshots/compact-codex.png" width="690" alt="QuotaPals floating dashboard: orange Claude and mint-green Codex pets beside their 5-hour and weekly usage bars and reset timers">
 </p>
 <p align="center"><sub>App screenshot with illustrative test readings—not a live account.</sub></p>
 
@@ -13,7 +13,7 @@ Stop interrupting your work to check whether Claude Code or Codex is about to ru
 
 You have enough to think about when you're building with AI. Tracking two different rate-limit schedules shouldn't be another job.
 
-Clauddy Dual shows you **what you've used and when it resets**, without opening a menu, switching a tab, or breaking concentration.
+QuotaPals shows you **what you've used and when it resets**, without opening a menu, switching a tab, or breaking concentration.
 
 | What matters | Claude Code | Codex |
 | --- | --- | --- |
@@ -47,12 +47,12 @@ This fork is currently **source-install only**: no downloadable binary release o
 **You'll need:** macOS, [Rust/Cargo](https://rustup.rs/), and your existing Claude Code and/or Codex installation.
 
 ```bash
-git clone https://github.com/manynames3/clauddy-dual.git
-cd clauddy-dual
-./scripts/install-dual-macos.sh
+git clone https://github.com/manynames3/quotapals.git
+cd quotapals
+./scripts/install-quotapals-macos.sh
 ```
 
-The script builds a signed local app, installs **Clauddy Dual.app** in `~/Applications`, and launches it. It keeps a timestamped backup before replacing an older Clauddy Dual build. Your original Clauddy installation is not replaced.
+The script builds a signed local app, installs **QuotaPals.app** in `~/Applications`, and launches it. It keeps a timestamped backup before replacing an older QuotaPals build. Your original Clauddy installation is not replaced.
 
 **Connect your providers:** In the app's Settings, authorize your Claude account for its account-level rate-limit percentages and enable Codex monitoring. The first Claude reading needs its own OAuth authorization—even if Claude Code is already signed in.
 
@@ -76,13 +76,13 @@ cargo clippy --release --all-targets -- -D warnings
 cargo test --release
 ```
 
-The screenshot fixtures live in [`native/tests/snapshots/`](native/tests/snapshots/). The Codex character's reproducible art generator is [`tools/generate_codex_pet.py`](tools/generate_codex_pet.py). Technical design details live in [`docs/design/`](docs/design/) and [`README-DUAL.md`](README-DUAL.md).
+The screenshot fixtures live in [`native/tests/snapshots/`](native/tests/snapshots/). The Codex character's reproducible art generator is [`tools/generate_codex_pet.py`](tools/generate_codex_pet.py). Technical design details live in [`docs/design/`](docs/design/) and [`FORK-NOTES.md`](FORK-NOTES.md).
 
-**Looking for `bunx clauddy` or the original root `install.sh`?** Those are from the upstream project and do **not** install this customization. Use the source-install command above for Clauddy Dual.
+**Looking for `bunx clauddy` or the original root `install.sh`?** Those are from the upstream project and do **not** install this customization. Use the source-install command above for QuotaPals.
 
 ## Credits & license
 
-Clauddy Dual builds on [**Clauddy** by Renato Augusto](https://github.com/renatoaug/claude-usage-monitor). The original native app, Claude pet, usage readers, and many UI components come from that MIT-licensed project. This fork adds the simultaneous four-limit dashboard and the independently animated Codex companion.
+QuotaPals builds on [**Clauddy** by Renato Augusto](https://github.com/renatoaug/claude-usage-monitor). The original native app, Claude pet, usage readers, and many UI components come from that MIT-licensed project. This fork adds the simultaneous four-limit dashboard and the independently animated Codex companion.
 
 [REA](https://github.com/morluto/rea) was used to analyze the inherited JavaScript launcher. The actual dual-provider UI changes were made directly to the open-source Rust app; REA is **not** a runtime dependency.
 

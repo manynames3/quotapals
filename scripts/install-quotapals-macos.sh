@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Source installer for Clauddy Dual. Does not touch the upstream Clauddy app.
+# Source installer for QuotaPals. Does not touch the upstream Clauddy app.
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
@@ -16,15 +16,15 @@ if ! command -v codesign >/dev/null 2>&1; then
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_ID="dev.aiden.clauddy-dual"
+APP_ID="dev.manynames3.quotapals"
 BUILD="$ROOT/native/target/Clauddy.app"
-DEST="$HOME/Applications/Clauddy Dual.app"
+DEST="$HOME/Applications/QuotaPals.app"
 
-echo "Building Clauddy Dual from source..."
+echo "Building QuotaPals from source..."
 (cd "$ROOT/native" && BUNDLE_ID="$APP_ID" scripts/bundle.sh)
 
-/usr/libexec/PlistBuddy -c 'Set :CFBundleName Clauddy Dual' "$BUILD/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Clauddy Dual' "$BUILD/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c 'Set :CFBundleName QuotaPals' "$BUILD/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName QuotaPals' "$BUILD/Contents/Info.plist"
 /usr/bin/codesign --force --sign - --identifier "$APP_ID" "$BUILD"
 /usr/bin/codesign --verify "$BUILD"
 
@@ -34,19 +34,19 @@ if [[ -e "$DEST" ]] && [[ ! -d "$DEST" ]]; then
   exit 1
 fi
 if [[ -d "$DEST" ]] && pgrep -f "^$DEST/Contents/MacOS/clauddy$" >/dev/null; then
-  echo "Please quit Clauddy Dual before reinstalling, then run this command again." >&2
+  echo "Please quit QuotaPals before reinstalling, then run this command again." >&2
   exit 1
 fi
 
 # Stage the complete signed bundle before touching the previous installation.
-STAGE="$HOME/Applications/.Clauddy-Dual-install-$$.app"
+STAGE="$HOME/Applications/.QuotaPals-install-$$.app"
 trap 'if [[ -d "$STAGE" ]]; then /bin/rm -rf "$STAGE"; fi' EXIT
 /usr/bin/ditto "$BUILD" "$STAGE"
 /usr/bin/codesign --verify "$STAGE"
 
 if [[ -d "$DEST" ]]; then
-  BACKUP="$HOME/Applications/Clauddy Dual-backup-$(date +%Y%m%d-%H%M%S).app"
-  echo "Moving previous Clauddy Dual app to: $BACKUP"
+  BACKUP="$HOME/Applications/QuotaPals-backup-$(date +%Y%m%d-%H%M%S).app"
+  echo "Moving previous QuotaPals app to: $BACKUP"
   /bin/mv "$DEST" "$BACKUP"
 fi
 /bin/mv "$STAGE" "$DEST"
