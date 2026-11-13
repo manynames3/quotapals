@@ -59,6 +59,8 @@ pub struct App {
     sized_zoom: i32,
     /// Original zoom while the user drags the bottom-right resize grip.
     zoom_drag_start: Option<i32>,
+    /// Latest *total* drag distance (egui's drag_delta is per frame).
+    zoom_drag_delta: Vec2,
     /// the pet's voice: what it noticed, and what it's saying now
     talk: crate::talk::Talk,
     updater: crate::updates::Updater,
@@ -201,6 +203,7 @@ impl App {
             sized_at: 0.0,
             sized_zoom: 0,
             zoom_drag_start: None,
+            zoom_drag_delta: Vec2::ZERO,
             updater: crate::updates::Updater::new(&cc.egui_ctx),
             talk: crate::talk::Talk::new(Some(crate::auth::default_data_dir().join("native-voice.json"))),
             heard: 0,
@@ -368,9 +371,18 @@ impl App {
         }
     }
 
+    /// Calculate the requested scale from a *frozen* drag start. We must not
+    /// resize the native viewport while the pointer is held: the egui drag
+    /// coordinates depend on zoom, so changing zoom on each drag frame causes
+    /// a feedback loop that rapidly oscillates the window size.
+    fn drag_zoom(baseline: i32, delta: Vec2) -> i32 {
+        let raw = baseline as f32 + (delta.x + delta.y) * 0.48;
+        ((raw / 5.0).round() as i32 * 5).clamp(75, 250)
+    }
+
     /// Borderless macOS windows lack a native resize border; resize by
-    /// dragging this affordance. Egui zoom scales fonts, sprites, bars and hit
-    /// targets together while the viewport follows its logical card size.
+    /// dragging this affordance. Preview a target without changing any layout
+    /// during the drag, and commit once on mouse release.
     fn resize_grip(&mut self, ui: &egui::Ui, ctx: &Context, card: egui::Rect) {
         let grip = egui::Rect::from_min_size(card.right_bottom() - Vec2::splat(25.0), Vec2::splat(22.0));
         let response = ui.interact(grip, ui.scope_id().with("scale-grip"), egui::Sense::click_and_drag());
@@ -385,21 +397,32 @@ impl App {
         }
         if response.drag_started() {
             self.zoom_drag_start = Some(self.prefs.zoom);
+            self.zoom_drag_delta = Vec2::ZERO;
         }
-        if response.dragged() {
-            let baseline = self.zoom_drag_start.unwrap_or(self.prefs.zoom);
-            let delta = response.drag_delta();
-            let raw = baseline as f32 + (delta.x + delta.y) * 0.48;
-            let next = ((raw / 5.0).round() as i32 * 5).clamp(75, 250);
+        // egui::Response::drag_delta is only the change in the latest frame
+        // and returns ZERO on release. Retain the total drag while held so
+        // mouse-up applies the full motion, not the final (zero) frame.
+        if let Some(delta) = response.total_drag_delta() {
+            self.zoom_drag_delta = delta;
+        }
+        // The tooltip previews the target; no window resizing while held.
+        if let Some(baseline) = self.zoom_drag_start {
+            let preview = Self::drag_zoom(baseline, self.zoom_drag_delta);
+            let _ = response.clone().on_hover_text(format!("Release to apply {preview}%"));
+        } else {
+            let _ = response.clone().on_hover_text("Drag to resize · release to apply");
+        }
+        if response.drag_stopped()
+            && let Some(baseline) = self.zoom_drag_start.take()
+        {
+            let next = Self::drag_zoom(baseline, self.zoom_drag_delta);
+            self.zoom_drag_delta = Vec2::ZERO;
             if next != self.prefs.zoom {
                 self.prefs.zoom = next;
                 self.draft.zoom = next;
+                self.prefs.save();
                 ctx.request_repaint();
             }
-        }
-        if response.drag_stopped() {
-            self.zoom_drag_start = None;
-            self.prefs.save();
         }
         if response.clicked() {
             self.prefs.zoom = if self.prefs.zoom >= 250 { 100 } else { (self.prefs.zoom + 10).min(250) };
@@ -818,6 +841,21 @@ mod tests {
         u.active = active;
         u.sleeping = sleeping;
         u
+    }
+
+    #[test]
+    fn resize_target_stays_stable_during_drag() {
+        let start = 150;
+        let drag = Vec2::new(120.0, 80.0);
+        // Computing the preview repeatedly must not change the baseline.
+        let first = App::drag_zoom(start, drag);
+        assert_eq!(first, 245);
+        for _ in 0..100 {
+            assert_eq!(App::drag_zoom(start, drag), first);
+        }
+        assert_eq!(App::drag_zoom(150, Vec2::ZERO), 150);
+        assert_eq!(App::drag_zoom(150, Vec2::new(-800.0, -800.0)), 75);
+        assert_eq!(App::drag_zoom(150, Vec2::new(800.0, 800.0)), 250);
     }
 
     #[test]
