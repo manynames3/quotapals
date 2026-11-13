@@ -100,6 +100,25 @@ fn codex_fixture_skin(name: &str) -> &'static crate::components::skins::Skin {
     crate::components::skins::codex_for_theme(costume_case(name).unwrap_or("classic"), 11, 11)
 }
 
+static TEAM_HIGHFIVE: std::sync::LazyLock<crate::companions::Effects> =
+    std::sync::LazyLock::new(|| crate::companions::Effects::demo_team(crate::companions::Gesture::HighFive));
+static TEAM_GIFT: std::sync::LazyLock<crate::companions::Effects> =
+    std::sync::LazyLock::new(|| crate::companions::Effects::demo_team(crate::companions::Gesture::Gift));
+static TEAM_NAP: std::sync::LazyLock<crate::companions::Effects> =
+    std::sync::LazyLock::new(|| crate::companions::Effects::demo_team(crate::companions::Gesture::Nap));
+
+fn interaction_fixture(name: &str) -> &'static crate::companions::Effects {
+    if name.ends_with("-highfive") {
+        &TEAM_HIGHFIVE
+    } else if name.ends_with("-gift") {
+        &TEAM_GIFT
+    } else if name.ends_with("-nap") {
+        &TEAM_NAP
+    } else {
+        &crate::companions::EMPTY
+    }
+}
+
 fn counts_fixture(name: &str) -> crate::reset_history::Counts {
     if name.contains("reset-counts") {
         crate::reset_history::Counts { claude_5h: 3, claude_weekly: 1, codex_5h: 8, codex_weekly: 2 }
@@ -138,7 +157,7 @@ fn render_inner(case: Case, draft: Prefs) {
             view: &case.view,
             pet: &pet,
             codex_skin: codex_fixture_skin(case.name),
-            effects: &crate::companions::EMPTY,
+            effects: interaction_fixture(case.name),
             reset_counts: counts_fixture(case.name),
             logos: &logos,
             menu_bar: case.name.ends_with("menu-bar"),
@@ -170,7 +189,7 @@ fn render_inner(case: Case, draft: Prefs) {
             view: &case.view,
             pet,
             codex_skin: codex_fixture_skin(case.name),
-            effects: &crate::companions::EMPTY,
+            effects: interaction_fixture(case.name),
             reset_counts: counts_fixture(case.name),
             logos,
             menu_bar: case.name.ends_with("menu-bar"),
@@ -412,6 +431,51 @@ fn compact_snowman_costume() {
     render_costume_case("compact-snowman");
 }
 
+#[test]
+fn compact_highfive_no_caption_collision() {
+    render(Case {
+        name: "compact-interaction-highfive",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(97.0, 31.0))), false),
+        mood: Mood::Tired,
+        view: compact_view(),
+    });
+}
+#[test]
+fn compact_gift_no_caption_collision() {
+    render(Case {
+        name: "compact-interaction-gift",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(97.0, 31.0))), false),
+        mood: Mood::Tired,
+        view: compact_view(),
+    });
+}
+#[test]
+fn compact_nap_no_caption_collision() {
+    render(Case {
+        name: "compact-interaction-nap",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(21.0, 31.0))), false),
+        mood: Mood::Idle,
+        view: compact_view(),
+    });
+}
+#[test]
+fn pet_only_highfive_no_caption_collision() {
+    render(Case {
+        name: "pet-only-interaction-highfive",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(97.0, 31.0))), false),
+        mood: Mood::Tired,
+        view: View { size: Size::PetOnly, ..Default::default() },
+    });
+}
+#[test]
+fn pet_only_gift_no_caption_collision() {
+    render(Case {
+        name: "pet-only-interaction-gift",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(97.0, 31.0))), false),
+        mood: Mood::Tired,
+        view: View { size: Size::PetOnly, ..Default::default() },
+    });
+}
 #[test]
 fn compact_separately_observed_reset_history() {
     render(Case {

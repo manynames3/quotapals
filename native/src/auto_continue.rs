@@ -6,6 +6,7 @@ use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
 
 use rusqlite::{Connection, OpenFlags};
@@ -22,6 +23,36 @@ const MAX_FAILURE_AGE: i64 = 7 * DAY;
 const FRESH_READING_AGE: i64 = 10 * 60_000;
 const WAKE_SECS: u64 = 50;
 const LIMIT_PER_POLL: usize = 3;
+
+/// The UI can report why a switch is enabled but not resuming anything.
+/// These status labels contain no session IDs or private conversation data.
+static CLAUDE_STATUS: AtomicU8 = AtomicU8::new(0);
+static CODEX_STATUS: AtomicU8 = AtomicU8::new(0);
+const OFF: u8 = 1;
+const DELEGATED: u8 = 2;
+const WAITING_DATA: u8 = 3;
+const NO_PAUSED: u8 = 4;
+const WAITING_RESET: u8 = 5;
+const SENT: u8 = 6;
+const LAUNCH_FAILED: u8 = 7;
+fn status_cell(provider: &str) -> &'static AtomicU8 {
+    if provider == "codex" { &CODEX_STATUS } else { &CLAUDE_STATUS }
+}
+fn set_status(provider: &str, value: u8) {
+    status_cell(provider).store(value, Ordering::Relaxed);
+}
+pub fn status_label(provider: &str) -> &'static str {
+    match status_cell(provider).load(Ordering::Relaxed) {
+        OFF => "Off",
+        DELEGATED => "CodexReset active; QuotaPals paused",
+        WAITING_DATA => "Waiting for fresh quota reading",
+        NO_PAUSED => "No eligible usage-paused chats",
+        WAITING_RESET => "Waiting for confirmed reset",
+        SENT => "Resume sent; completion unverified",
+        LAUNCH_FAILED => "CLI failed; see local log",
+        _ => "Checking local sessions...",
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 struct Quota {
@@ -323,8 +354,10 @@ fn dispatch(provider: &str, session: &Paused) -> bool {
         Ok(mut child) => {
             // A successful spawn is a dispatch, not proof the model completed;
             // never retry automatically after a spawn to avoid double turns.
-            std::thread::spawn(move || {
-                let _ = child.wait();
+            std::thread::spawn(move || match child.wait() {
+                Ok(status) if status.success() => note("Resume CLI exited successfully; result in the original chat is unverified"),
+                Ok(status) => note(&format!("Resume CLI exited with status {:?}; original chat may not have resumed", status.code())),
+                Err(e) => note(&format!("Could not observe resume CLI exit: {e}")),
             });
             true
         }
@@ -344,6 +377,12 @@ pub fn spawn(shared: Shared) {
         loop {
             std::thread::sleep(Duration::from_secs(WAKE_SECS));
             let prefs = Prefs::load();
+            if !prefs.resume_claude {
+                set_status("claude", OFF);
+            }
+            if !prefs.resume_codex {
+                set_status("codex", OFF);
+            }
             if !prefs.resume_claude && !prefs.resume_codex {
                 continue;
             }
@@ -358,16 +397,28 @@ pub fn spawn(shared: Shared) {
                 note("Codex auto-continue deferred: CodexReset is running with auto-continue enabled. Disable its toggle or quit it.");
             }
             warned_codexreset = codexreset_collision;
+            if codexreset_collision {
+                set_status("codex", DELEGATED);
+            }
             let services = [
                 ("claude", prefs.resume_claude, claude_windows(&snap, now)),
                 ("codex", prefs.resume_codex && !codexreset_collision, codex_windows(&snap, now)),
             ];
             for (provider, enabled, windows) in services {
-                if !enabled || windows.is_empty() {
+                if !enabled {
+                    continue;
+                }
+                if windows.is_empty() {
+                    set_status(provider, WAITING_DATA);
                     continue;
                 }
                 let failures = if provider == "claude" { claude_paused(now) } else { codex_paused(now) };
+                if failures.is_empty() {
+                    set_status(provider, NO_PAUSED);
+                    continue;
+                }
                 let mut sent = 0;
+                let mut eligible = 0;
                 for session in failures {
                     if sent >= LIMIT_PER_POLL {
                         break;
@@ -379,6 +430,7 @@ pub fn spawn(shared: Shared) {
                     if state.issued.contains(&key) {
                         continue;
                     }
+                    eligible += 1;
                     if dispatch(provider, &session) {
                         state.issued.insert(key);
                         while state.issued.len() > 300 {
@@ -391,6 +443,16 @@ pub fn spawn(shared: Shared) {
                         sent += 1;
                     }
                 }
+                set_status(
+                    provider,
+                    if sent > 0 {
+                        SENT
+                    } else if eligible > 0 {
+                        LAUNCH_FAILED
+                    } else {
+                        WAITING_RESET
+                    },
+                );
             }
         }
     });

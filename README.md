@@ -46,7 +46,7 @@ Give your work companions some personality. Click the **gear beside X → Look**
 
 - **Seasonal collections:** Switch between **Auto**, **Base**, **Xmas**, **Boo** (Halloween), and **Snow** (winter). Within Xmas, pick **Santa**, **Elf**, or **Deer**. Both pets dress to match; Claude's underlying costumes come from MIT-licensed Clauddy, while the Codex robot and its costume sheets are original additions. The new snow-day set includes a puffy snowman-style Codex robot.
 - **Lives in:** **Float** (desktop widget), **Bar** (macOS menu bar), or **Both**. The menu lists separate usage windows and their next resets.
-- **Click to interact:** Click either pet to cycle a heart, wave, and dance. Click **team up** in the compact footer (or the little heart between pets in pet-only mode) to cycle **high-five, gift exchange, and nap buddies**.
+- **Click to interact:** Click either pet to cycle a heart, wave, and dance. Click **team up** in the compact footer (or the little heart between pets in pet-only mode) to cycle **high-five, gift exchange, and nap buddies**. Animations stay within the pet area; one short reaction label appears in the footer rather than covering meters or characters.
 - **Automatic emotions:** Busy pets work, low-energy pets sleep, nearing the limit makes them nervous, and a confirmed 5-hour or weekly reset triggers a labeled celebration. Completing an active task makes that specific companion cheer. Reactions are purely visual; they don't issue model requests.
 
 <p align="center">
@@ -76,7 +76,7 @@ In the compact widget, click the **gear next to X**, open **Resume**, and turn o
 - **Safety:** No auto-continuation without opt-in. Completed or actively continued turns aren't intentionally retried. Resumptions are recorded to prevent duplicate sends across restarts. QuotaPals does not bypass permissions.
 - **Availability:** QuotaPals must remain running, the relevant CLI must be installed, and both the error and recovery must be verifiable. Some providers or failure formats may not be detectable. **A dispatched command is not proof the session completed successfully.**
 
-**Already running CodexReset?** Turn off its own auto-continue switch (or quit CodexReset) before enabling this in QuotaPals, to avoid competing recovery attempts. CodexReset's more elaborate chat-selection and local app-server/GUI fallback features are **not yet replicated** here; this version targets recent conversations whose latest turn specifically failed because of a rate limit.
+**Already running CodexReset?** If its auto-continue is enabled, QuotaPals **defers Codex recovery** to avoid duplicate turns. CodexReset only resumes conversations that are both **selected** and **currently usage-paused**; if no selected conversation qualifies, neither app will resume anything. Select the intended paused conversations in CodexReset, or disable its auto-continue to hand control to QuotaPals. Do not enable both engines for the same conversations. QuotaPals' **Settings → Resume** tab now shows the current reason for waiting. CodexReset's chat-selection and app-server/GUI fallback features are **not yet replicated** here.
 
 The local activity log is stored at `~/.claude-usage-monitor/auto-continue.log`. Automated turns can consume usage and, within the CLI's normal permissions, make project changes. This feature is new and should be monitored until validated against a real reset.
 

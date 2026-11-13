@@ -59,7 +59,7 @@ fn pane_h(tab: Tab, snap: &Snapshot, view: &super::View) -> f32 {
         Tab::Accounts => TILES_H + 10.0 + CONN_H + if login { LOGIN_H } else { 0.0 },
         Tab::Alerts => block_h(3) + GAP + block_h(1),
         Tab::Appearance => block_h(1) + GAP + block_h(2) + GAP + block_h(2) + GAP + block_h(2),
-        Tab::Resume => block_h(2) + 95.0,
+        Tab::Resume => block_h(2) + 132.0,
     }
 }
 
@@ -365,19 +365,24 @@ fn resume_options(ui: &Ui, left: f32, right: f32, y: f32, draft: &Prefs, actions
         actions.push(Action::EditPrefs(Prefs { resume_codex: !draft.resume_codex, ..draft.clone() }));
     }
 
-    let line_y = gy + 2.0 * crate::ui::group::ROW + 27.0;
-    let clip = p.with_clip_rect(Rect::from_min_max(Pos2::new(left, line_y - 9.0), Pos2::new(right, line_y + 76.0)));
+    let line_y = gy + 2.0 * crate::ui::group::ROW + 23.0;
+    let clip = p.with_clip_rect(Rect::from_min_max(Pos2::new(left, line_y - 9.0), Pos2::new(right, line_y + 118.0)));
     for (i, note) in [
-        "OFF by default. Resumes ALL chats whose",
-        "latest turn failed due to a usage limit",
-        "after fresh quota recovery; uses your CLI.",
-        "Disable CodexReset's own auto-continue",
-        "to avoid duplicates. QuotaPals stays open.",
+        "Only quota-paused chats qualify; a reset",
+        "alone never restarts completed conversations.",
+        "CodexReset may own Codex auto-continue.",
+        "Select paused chats there, or switch it off.",
     ]
     .into_iter()
     .enumerate()
     {
         text_mid(&clip, left, line_y + i as f32 * 15.0, Align::Min, note, text::SMALL, color::FG_MUTED);
+    }
+    let status_y = line_y + 66.0;
+    for (i, (provider, label)) in
+        [("Claude", crate::auto_continue::status_label("claude")), ("Codex", crate::auto_continue::status_label("codex"))].into_iter().enumerate()
+    {
+        text_mid(&clip, left, status_y + i as f32 * 18.0, Align::Min, &format!("{provider}: {label}"), text::SMALL, color::FG_LABEL);
     }
 }
 

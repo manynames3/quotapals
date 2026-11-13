@@ -77,7 +77,7 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame, over_pet: Option<bool>) -> Out {
     }
     if dual {
         crate::companions::pixel_heart(ui.painter(), team_button.center(), color::CLAUDE);
-        f.effects.decorate_team(ui.painter(), Pos2::new(rect.center().x, rect.top() + 41.0));
+        // Keep the pet-only scene visual; no text over the characters.
         f.effects.scene_between(ui.painter(), claude_body, codex_body);
     }
     // the glance, only while the cursor is over the pet (or the glance)

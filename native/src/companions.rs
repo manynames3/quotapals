@@ -2,7 +2,7 @@
 // merely petting a companion cannot launch a CLI or modify quota data.
 use crate::components::logos::Provider;
 use crate::ui::theme::color;
-use eframe::egui::{Align2, Color32, FontId, Painter, Pos2, Rect, Stroke, Vec2};
+use eframe::egui::{Color32, Painter, Pos2, Rect, Stroke, Vec2};
 use std::time::Instant;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,22 +16,6 @@ pub enum Gesture {
     HighFive,
     Gift,
     Nap,
-}
-
-impl Gesture {
-    pub fn caption(self) -> &'static str {
-        match self {
-            Self::Heart => "loved!",
-            Self::Wave => "hello!",
-            Self::Dance => "dancing!",
-            Self::Cheer => "5h reset!",
-            Self::WeeklyReset => "weekly reset!",
-            Self::Finished => "task done!",
-            Self::HighFive => "high five!",
-            Self::Gift => "a little gift!",
-            Self::Nap => "nap buddies",
-        }
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -50,6 +34,8 @@ pub struct Effects {
     team: Option<Reaction>,
     clicks: [u32; 2],
     team_clicks: u32,
+    #[cfg(test)]
+    demo_team: Option<Gesture>,
 }
 
 impl Effects {
@@ -96,7 +82,25 @@ impl Effects {
         Self::live(if provider == Provider::Codex { self.codex } else { self.claude }).or_else(|| Self::live(self.team))
     }
     pub fn team(&self) -> Option<(Gesture, f32)> {
+        #[cfg(test)]
+        if let Some(gesture) = self.demo_team {
+            return Some((gesture, 0.7)); // frozen animation frame for screenshots
+        }
         Self::live(self.team)
+    }
+
+    pub fn team_label(&self) -> &'static str {
+        match self.team().map(|(kind, _)| kind) {
+            Some(Gesture::HighFive) => "high five",
+            Some(Gesture::Gift) => "gift",
+            Some(Gesture::Nap) => "nap time",
+            _ => "team up",
+        }
+    }
+
+    #[cfg(test)]
+    pub fn demo_team(kind: Gesture) -> Self {
+        Self { demo_team: Some(kind), ..Self::default() }
     }
     pub fn animating(&self) -> bool {
         self.for_provider(Provider::Claude).is_some() || self.for_provider(Provider::Codex).is_some()
@@ -110,32 +114,31 @@ impl Effects {
         }
     }
 
-    /// Draw animated hearts, waves, confetti and a small spoken reaction.
-    /// All effects use native egui primitives; there is no GIF export.
-    pub fn decorate(&self, p: &Painter, provider: Provider, area: Rect) {
+    /// Pixel-only reactions. Every stroke stays inside the pet stage.
+    /// Captions are never painted over characters, meters or activity labels.
+    pub fn decorate(&self, painter: &Painter, provider: Provider, area: Rect) {
         let Some((gesture, t)) = self.for_provider(provider) else {
             return;
         };
+        let safe = area.shrink(5.0);
+        let p = painter.with_clip_rect(safe);
         let fade = ((2.5 - t) / 0.6).clamp(0.0, 1.0);
         let tint = if provider == Provider::Claude { color::CLAUDE } else { color::CODEX };
         let color = tint.gamma_multiply(fade);
-        let center = area.center();
-        let drift = (t * 2.0).sin() * 3.0;
+        let drift = (t * 2.0).sin() * 2.0;
         if matches!(gesture, Gesture::Heart | Gesture::Gift | Gesture::Nap) {
-            pixel_heart(p, Pos2::new(center.x + 22.0 + drift, area.top() + 8.0 - t * 5.0), color::CLAUDE.gamma_multiply(fade));
+            pixel_heart(&p, Pos2::new(safe.right() - 12.0 + drift, safe.top() + 13.0 - t * 3.0), color::CLAUDE.gamma_multiply(fade));
         } else {
-            // Four-pixel sparkles rotate around the pet.
-            for (i, (dx, dy)) in [(-23.0, -11.0), (25.0, -15.0), (-19.0, 13.0)].into_iter().enumerate() {
-                let at = center + Vec2::new(dx, dy + (t * 7.0 + i as f32).sin() * 4.0);
-                p.line_segment([at + Vec2::new(-3.0, 0.0), at + Vec2::new(3.0, 0.0)], Stroke::new(1.3, color));
-                p.line_segment([at + Vec2::new(0.0, -3.0), at + Vec2::new(0.0, 3.0)], Stroke::new(1.3, color));
+            for (i, (dx, dy)) in [(-17.0, -10.0), (15.0, -11.0), (-13.0, 13.0)].into_iter().enumerate() {
+                let at = safe.center() + Vec2::new(dx, dy + (t * 6.0 + i as f32).sin() * 2.0);
+                p.line_segment([at + Vec2::new(-2.0, 0.0), at + Vec2::new(2.0, 0.0)], Stroke::new(1.3, color));
+                p.line_segment([at + Vec2::new(0.0, -2.0), at + Vec2::new(0.0, 2.0)], Stroke::new(1.3, color));
             }
         }
-        p.text(Pos2::new(center.x, area.top() - 5.0), Align2::CENTER_BOTTOM, gesture.caption(), FontId::proportional(9.0), color);
     }
-    /// A shared interaction draws physical pixel props between both bodies
-    /// instead of relying on an explanatory caption alone.
-    pub fn scene_between(&self, p: &Painter, claude: Rect, codex: Rect) {
+    /// Keep the shared effect in a tiny lane between sprites; never
+    /// draw long strokes or captions across the quota data.
+    pub fn scene_between(&self, painter: &Painter, claude: Rect, codex: Rect) {
         let Some((gesture, t)) = self.team() else {
             return;
         };
@@ -143,60 +146,38 @@ impl Effects {
             return;
         }
         let vertical = (claude.center().y - codex.center().y).abs() > (claude.center().x - codex.center().x).abs();
-        let (from, to) = if vertical {
-            (Pos2::new(claude.center().x, claude.bottom() - 3.0), Pos2::new(codex.center().x, codex.top() + 3.0))
+        let at = if vertical {
+            Pos2::new((claude.center().x + codex.center().x) / 2.0, (claude.bottom() + codex.top()) / 2.0 + 9.0)
         } else {
-            (Pos2::new(claude.right() - 5.0, claude.center().y + 9.0), Pos2::new(codex.left() + 5.0, codex.center().y + 9.0))
+            Pos2::new((claude.right() + codex.left()) / 2.0, (claude.center().y + codex.center().y) / 2.0)
         };
-        let at = Pos2::new((from.x + to.x) / 2.0, (from.y + to.y) / 2.0);
+        let slot = Rect::from_center_size(at, Vec2::splat(15.0));
+        let p = painter.with_clip_rect(slot);
         let fade = ((2.5 - t) / 0.6).clamp(0.0, 1.0);
         match gesture {
             Gesture::HighFive => {
-                let flex = (t * 8.0).sin().abs() * 3.0;
-                let p1 = Pos2::new((from.x + at.x) / 2.0, (from.y + at.y) / 2.0);
-                let p2 = Pos2::new((to.x + at.x) / 2.0, (to.y + at.y) / 2.0);
-                p.line_segment([p1, at], Stroke::new(3.0, color::CLAUDE.gamma_multiply(fade)));
-                p.line_segment([at, p2], Stroke::new(3.0, color::CODEX.gamma_multiply(fade)));
-                p.line_segment([at + Vec2::new(-4.0 - flex, 0.0), at + Vec2::new(4.0 + flex, 0.0)], Stroke::new(1.5, color::FG_STRONG.gamma_multiply(fade)));
-                p.line_segment([at + Vec2::new(0.0, -4.0 - flex), at + Vec2::new(0.0, 4.0 + flex)], Stroke::new(1.5, color::FG_STRONG.gamma_multiply(fade)));
+                // Two colored pixel paws meet with a small central spark.
+                p.rect_filled(Rect::from_min_size(at + Vec2::new(-7.0, -1.0), Vec2::new(5.0, 5.0)), 0.0, color::CLAUDE.gamma_multiply(fade));
+                p.rect_filled(Rect::from_min_size(at + Vec2::new(2.0, -1.0), Vec2::new(5.0, 5.0)), 0.0, color::CODEX.gamma_multiply(fade));
+                for (a, b) in [(Vec2::new(-2.0, -5.0), Vec2::new(2.0, -5.0)), (Vec2::new(0.0, -7.0), Vec2::new(0.0, -3.0))] {
+                    p.line_segment([at + a, at + b], Stroke::new(1.3, color::FG_STRONG.gamma_multiply(fade)));
+                }
             }
             Gesture::Gift => {
-                let x = from.x + (to.x - from.x) * (t / 2.5).clamp(0.0, 1.0);
-                let y = from.y + (to.y - from.y) * (t / 2.5).clamp(0.0, 1.0) - (t * 8.0).sin().abs() * 4.0;
-                let box_at = Pos2::new(x, y);
-                p.rect_filled(Rect::from_center_size(box_at, Vec2::new(13.0, 12.0)), 0.0, color::CLAUDE.gamma_multiply(fade));
-                p.rect_filled(Rect::from_center_size(box_at, Vec2::new(3.0, 12.0)), 0.0, color::FG_STRONG.gamma_multiply(fade));
-                p.rect_filled(Rect::from_center_size(box_at, Vec2::new(13.0, 2.0)), 0.0, color::FG_STRONG.gamma_multiply(fade));
+                let bounce = (t * 7.0).sin().abs() * 2.0;
+                let gift = Rect::from_center_size(at + Vec2::new(0.0, -bounce), Vec2::new(12.0, 11.0));
+                p.rect_filled(gift, 0.0, color::CLAUDE.gamma_multiply(fade));
+                p.rect_filled(Rect::from_center_size(gift.center(), Vec2::new(2.0, 11.0)), 0.0, color::FG_STRONG.gamma_multiply(fade));
+                p.rect_filled(Rect::from_center_size(gift.center(), Vec2::new(12.0, 2.0)), 0.0, color::FG_STRONG.gamma_multiply(fade));
             }
-            Gesture::Nap => {
-                pixel_heart(p, at + Vec2::new(0.0, -3.0 - (t * 2.0).sin() * 2.0), color::CLAUDE.gamma_multiply(fade));
-            }
+            Gesture::Nap => pixel_heart(&p, at, color::CLAUDE.gamma_multiply(fade)),
             _ => {}
         }
     }
-
     /// Nap is an optional playful override only while already idle; never
     /// mislabel an active or quota-limited provider as sleeping.
     pub fn playful_mood(&self, mood: crate::components::pet::Mood) -> crate::components::pet::Mood {
         if matches!(self.team(), Some((Gesture::Nap, _))) && mood == crate::components::pet::Mood::Idle { crate::components::pet::Mood::Sleeping } else { mood }
-    }
-
-    pub fn decorate_team(&self, p: &Painter, at: Pos2) {
-        if let Some((gesture, t)) = self.team() {
-            let fade = ((2.5 - t) / 0.6).clamp(0.0, 1.0);
-            let tint = color::FG_STRONG.gamma_multiply(fade);
-            p.text(
-                at + Vec2::new(0.0, (t * 7.0).sin() * 2.0),
-                Align2::CENTER_CENTER,
-                match gesture {
-                    Gesture::Gift => "a little gift!",
-                    Gesture::Nap => "Zz...",
-                    _ => "high five!",
-                },
-                FontId::proportional(14.0),
-                tint,
-            );
-        }
     }
 }
 

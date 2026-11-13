@@ -210,9 +210,10 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         if click_area(ui, team, "team-up").clicked() {
             actions.push(Action::TeamUp);
         }
-        p.text(team.center() + Vec2::new(5.0, 0.0), Align2::CENTER_CENTER, "team up", FontId::proportional(text::TINY), color::FG_SUB);
+        p.text(team.center() + Vec2::new(5.0, 0.0), Align2::CENTER_CENTER, f.effects.team_label(), FontId::proportional(text::TINY), color::FG_SUB);
         crate::companions::pixel_heart(p, team.center() + Vec2::new(-28.0, -2.0), color::CLAUDE);
-        f.effects.decorate_team(p, Pos2::new(above.left() + STAGE.x / 2.0, above.center().y));
+        // One short interaction label lives in the dedicated footer control.
+        // Tiny pixel props are clipped to the space between the characters.
         f.effects.scene_between(p, claude_body, codex_body);
     }
     if !f.snap.loaded {
