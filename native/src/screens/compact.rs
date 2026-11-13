@@ -217,9 +217,9 @@ pub fn draw(ui: &Ui, ctx: &Context, f: &Frame) -> Vec<Action> {
         f.effects.scene_between(p, claude_body, codex_body);
     }
     if !f.snap.loaded {
-        text_mid(p, right, line_y, Align::Max, "reading local usage…", text::TINY, color::FG_MUTED);
+        text_mid(p, right - 21.0, line_y, Align::Max, "reading local usage…", text::TINY, color::FG_MUTED);
     } else {
-        text_mid(p, right, line_y, Align::Max, "usage used · time to reset", text::TINY, color::FG_RESET);
+        text_mid(p, right - 21.0, line_y, Align::Max, "usage used · time to reset", text::TINY, color::FG_RESET);
     }
 
     if let Some((said, progress)) = f.bubble {

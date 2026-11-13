@@ -538,10 +538,10 @@ fn appearance(ui: &Ui, f: &Frame, left: f32, right: f32, y: f32, draft: &Prefs, 
     if let Some(i) = segmented(ui, seg, "lives-in", &["Float", "Bar", "Both"], mode, text::SMALL, &[]) {
         actions.push(Action::EditPrefs(Prefs { menu_bar: i == 1, menu_bar_alongside: i == 2, ..draft.clone() }));
     }
-    row_label(&p, left, rows[1], "Zoom", false);
-    // applied as you step it, so the widget shows the size at once
+    row_label(&p, left, rows[1], "Scale 75–250%", false);
+    // Live preview: enlarge/reduce text, pets, bars and click targets together.
     if let Some(d) = stepper(ui, right - 10.0, rows[1], "zoom", draft.zoom, "%", true) {
-        actions.push(Action::EditPrefs(Prefs { zoom: draft.zoom + 25 * d, ..draft.clone() }.clamped()));
+        actions.push(Action::EditPrefs(Prefs { zoom: draft.zoom + 10 * d, ..draft.clone() }.clamped()));
     }
 
     let gy = group_label(&p, left, gy + 2.0 * row + GAP, "voice");

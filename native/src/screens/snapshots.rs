@@ -171,7 +171,19 @@ fn render_inner(case: Case, draft: Prefs) {
         };
         size(&f)
     };
-    let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0).build_ui(|ui| {
+    // Simulate Retina displays at multiple user-chosen native UI scales.
+    // The card remains the same logical size; text, sprites and hit targets
+    // scale together in physical pixels without overlap.
+    let zoom = if case.name.contains("zoom-225") {
+        2.25
+    } else if case.name.contains("zoom-175") {
+        1.75
+    } else if case.name.contains("zoom-150") {
+        1.5
+    } else {
+        1.0
+    };
+    let mut harness = Harness::builder().with_size(window).with_pixels_per_point(2.0 * zoom).build_ui(|ui| {
         let ctx = ui.ctx().clone();
         let (pet, logos) = assets.get_or_insert_with(|| (Pet::frozen(&ctx, 0.3), Logos::load(&ctx)));
         if let Some(theme) = costume_case(case.name) {
@@ -214,6 +226,33 @@ fn render_inner(case: Case, draft: Prefs) {
 
 fn compact_view() -> View {
     View { size: Size::Compact, ..View::default() }
+}
+
+#[test]
+fn compact_zoom_150() {
+    render(Case {
+        name: "compact-zoom-150",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(67.0, 32.0))), false),
+        mood: Mood::Idle,
+        view: compact_view(),
+    });
+}
+
+#[test]
+fn compact_zoom_225() {
+    render(Case {
+        name: "compact-zoom-225",
+        snap: with_codex(snapshot(usage(false, None), Some(limits(88.0, 49.0))), false),
+        mood: Mood::Fire,
+        view: compact_view(),
+    });
+}
+
+#[test]
+fn settings_zoom_175() {
+    let snap = with_codex(snapshot(usage(false, None), Some(limits(61.0, 71.0))), false);
+    let prefs = Prefs { zoom: 175, ..Default::default() };
+    render_with(Case { name: "settings-zoom-175", snap, mood: Mood::Idle, view: settings_view(settings::Tab::Appearance) }, prefs);
 }
 
 #[test]

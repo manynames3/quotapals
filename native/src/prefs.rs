@@ -104,7 +104,7 @@ impl Prefs {
         self.heads_up = self.heads_up.clamp(1, 100);
         self.near_limit = self.near_limit.clamp(1, 100);
         self.fire = self.fire.clamp(1, 99);
-        self.zoom = self.zoom.clamp(100, 200);
+        self.zoom = self.zoom.clamp(75, 250);
         if !matches!(self.theme.as_str(), "auto" | "classic" | "christmas" | "elf" | "reindeer" | "halloween" | "winter") {
             self.theme = "auto".into();
         }
@@ -191,7 +191,9 @@ mod tests {
         assert_eq!(Prefs::from_value(&json!({"theme": "christmas"})).theme, "christmas");
         assert_eq!(Prefs::from_value(&json!({"theme": "invalid"})).theme, "auto");
         assert_eq!(Prefs::from_value(&json!({"zoom": 150})).zoom, 150);
-        assert_eq!(Prefs::from_value(&json!({"zoom": 900})).zoom, 200);
+        assert_eq!(Prefs::from_value(&json!({"zoom": 900})).zoom, 250);
+        assert_eq!(Prefs::from_value(&json!({"zoom": 40})).zoom, 75);
+        assert_eq!(Prefs::from_value(&json!({"zoom": 175})).zoom, 175);
         assert_eq!(Prefs::from_value(&json!({})), Prefs::default());
     }
 

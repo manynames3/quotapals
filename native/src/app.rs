@@ -55,6 +55,10 @@ pub struct App {
     window: [f32; 2],
     /// the pixels per point the window was last sized at
     sized_at: f32,
+    /// Last zoom used to size the native viewport.
+    sized_zoom: i32,
+    /// Original zoom while the user drags the bottom-right resize grip.
+    zoom_drag_start: Option<i32>,
     /// the pet's voice: what it noticed, and what it's saying now
     talk: crate::talk::Talk,
     updater: crate::updates::Updater,
@@ -110,10 +114,9 @@ impl Said {
 }
 
 /// The window's size at launch, from the remembered view, before any reading.
-/// On macOS the window is a fixed, transparent canvas the card lives in: it
-/// never resizes (a resize shows one empty frame, which reads as a blink),
-/// and clicks off the card fall through to what's behind. Elsewhere the
-/// window fits the card.
+/// At normal zoom, macOS keeps a transparent canvas so switching panels
+/// never blinks. At larger/smaller user scales, use a snug viewport instead:
+/// otherwise the canvas grows taller than the display and may clip the UI.
 const FIXED_CANVAS: bool = cfg!(target_os = "macos");
 /// Wide enough for the expanded panel, tall enough for its Details open
 /// or any Settings tab; it grows if a screen ever needs more.
@@ -121,11 +124,12 @@ const CANVAS: [f32; 2] = [352.0, 780.0];
 
 pub fn initial_size() -> [f32; 2] {
     // the menu bar's popover is an ordinary window the card's size
-    if FIXED_CANVAS && !Prefs::load().menu_bar {
+    let prefs = Prefs::load();
+    if FIXED_CANVAS && !prefs.menu_bar && prefs.zoom == 100 {
         return CANVAS;
     }
     let view = load_view();
-    let size = if Prefs::load().menu_bar { Size::Expanded } else { view.size };
+    let size = if prefs.menu_bar { Size::Expanded } else { view.size };
     match size {
         Size::Compact => compact::size(1, false),
         Size::Expanded => expanded::size(&Snapshot::default(), &view, None, 80.0),
@@ -195,6 +199,8 @@ impl App {
             leaving: None,
             window: initial_size(),
             sized_at: 0.0,
+            sized_zoom: 0,
+            zoom_drag_start: None,
             updater: crate::updates::Updater::new(&cc.egui_ctx),
             talk: crate::talk::Talk::new(Some(crate::auth::default_data_dir().join("native-voice.json"))),
             heard: 0,
@@ -331,6 +337,75 @@ impl App {
         self.said = Some(Said { text: r.line.text.clone(), short: r.line.short.clone(), since: start, until: start + stay });
         if r.headline && self.prefs.sound && !self.prefs.menu_bar && size == Size::Expanded && self.prefs.muted_until <= now {
             crate::voice::play(&r.line.text, r.tone);
+        }
+    }
+
+    /// Standard Mac keyboard alternatives when dragging a corner is
+    /// inconvenient; the selected size is the same persisted setting.
+    fn keyboard_scale(&mut self, ctx: &Context) {
+        if self.prefs.menu_bar {
+            return;
+        }
+        let step = ctx.input(|i| {
+            if !i.modifiers.command {
+                return 0;
+            }
+            if i.key_pressed(egui::Key::Num0) {
+                i32::MAX // special marker for 100% reset
+            } else if i.key_pressed(egui::Key::Plus) || i.key_pressed(egui::Key::Equals) {
+                10
+            } else if i.key_pressed(egui::Key::Minus) {
+                -10
+            } else {
+                0
+            }
+        });
+        if step != 0 {
+            self.prefs.zoom = if step == i32::MAX { 100 } else { (self.prefs.zoom + step).clamp(75, 250) };
+            self.draft.zoom = self.prefs.zoom;
+            self.prefs.save();
+            ctx.request_repaint();
+        }
+    }
+
+    /// Borderless macOS windows lack a native resize border; resize by
+    /// dragging this affordance. Egui zoom scales fonts, sprites, bars and hit
+    /// targets together while the viewport follows its logical card size.
+    fn resize_grip(&mut self, ui: &egui::Ui, ctx: &Context, card: egui::Rect) {
+        let grip = egui::Rect::from_min_size(card.right_bottom() - Vec2::splat(25.0), Vec2::splat(22.0));
+        let response = ui.interact(grip, ui.scope_id().with("scale-grip"), egui::Sense::click_and_drag());
+        let c = if response.hovered() || response.dragged() { theme::color::FG } else { theme::color::FG_MUTED };
+        let corner = card.right_bottom() - Vec2::splat(10.0);
+        let paint = ui.painter().with_clip_rect(card.shrink(2.0));
+        for offset in [0.0, 5.0, 10.0] {
+            paint.line_segment([corner + Vec2::new(-offset - 2.0, 0.0), corner + Vec2::new(0.0, -offset - 2.0)], egui::Stroke::new(1.3, c));
+        }
+        if response.hovered() || response.dragged() {
+            ctx.set_cursor_icon(egui::CursorIcon::ResizeNwSe);
+        }
+        if response.drag_started() {
+            self.zoom_drag_start = Some(self.prefs.zoom);
+        }
+        if response.dragged() {
+            let baseline = self.zoom_drag_start.unwrap_or(self.prefs.zoom);
+            let delta = response.drag_delta();
+            let raw = baseline as f32 + (delta.x + delta.y) * 0.48;
+            let next = ((raw / 5.0).round() as i32 * 5).clamp(75, 250);
+            if next != self.prefs.zoom {
+                self.prefs.zoom = next;
+                self.draft.zoom = next;
+                ctx.request_repaint();
+            }
+        }
+        if response.drag_stopped() {
+            self.zoom_drag_start = None;
+            self.prefs.save();
+        }
+        if response.clicked() {
+            self.prefs.zoom = if self.prefs.zoom >= 250 { 100 } else { (self.prefs.zoom + 10).min(250) };
+            self.draft.zoom = self.prefs.zoom;
+            self.prefs.save();
+            ctx.request_repaint();
         }
     }
 
@@ -489,8 +564,9 @@ impl eframe::App for App {
         let size = if self.prefs.menu_bar { Size::Expanded } else { self.view.size };
         let screen = (self.view.settings, size);
         // the zoom: the draft's while Settings is open, so a step shows at once
-        let zoom = if self.view.settings.is_some() { self.draft.zoom } else { self.prefs.zoom } as f32 / 100.0;
-        if ctx.zoom_factor() != zoom {
+        let zoom_pct = if self.view.settings.is_some() { self.draft.zoom } else { self.prefs.zoom };
+        let zoom = zoom_pct as f32 / 100.0;
+        if (ctx.zoom_factor() - zoom).abs() > f32::EPSILON {
             ctx.set_zoom_factor(zoom);
         }
         // it takes hold a frame later; then the window, sized in points, is
@@ -523,7 +599,7 @@ impl eframe::App for App {
         // waits on the OS resizing a window frame by frame.
         if want != self.size {
             let morph = self.size != [0.0, 0.0] && size != Size::PetOnly && self.screen.1 != Size::PetOnly && self.leaving.is_none();
-            let fixed = FIXED_CANVAS && !self.prefs.menu_bar;
+            let fixed = FIXED_CANVAS && !self.prefs.menu_bar && zoom_pct == 100;
             let window = if fixed {
                 [CANVAS[0].max(want[0]).max(self.window[0]), CANVAS[1].max(want[1]).max(self.window[1])]
             } else if morph {
@@ -538,6 +614,14 @@ impl eframe::App for App {
                 ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(window.into()));
             }
         }
+        // A zoom-only change doesn't alter the logical widget dimensions,
+        // but it MUST resize the OS window so text/pets never get cropped.
+        if zoom_pct != self.sized_zoom {
+            self.sized_zoom = zoom_pct;
+            let correct = if FIXED_CANVAS && !self.prefs.menu_bar && zoom_pct == 100 { [CANVAS[0].max(want[0]), CANVAS[1].max(want[1])] } else { want };
+            self.window = correct;
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(correct.into()));
+        }
         let settled = card_of(want);
         match self.morph {
             Some((from, start)) => {
@@ -545,7 +629,7 @@ impl eframe::App for App {
                 self.card_now = from + (settled - from) * t;
                 if t >= 1.0 {
                     self.morph = None;
-                    if !(FIXED_CANVAS && !self.prefs.menu_bar) && self.window != want {
+                    if !(FIXED_CANVAS && !self.prefs.menu_bar && zoom_pct == 100) && self.window != want {
                         self.window = want;
                         ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(want.into()));
                     }
@@ -678,6 +762,10 @@ impl eframe::App for App {
         if self.prefs.menu_bar {
             actions.retain(|a| !matches!(a, Action::Resize(_)));
         }
+        // The floating panel has a visible resize grip. Drag horizontally
+        // or diagonally to scale the entire UI, or click for a 10% increment.
+        // Zoom is persisted when the drag finishes; no repeated disk writes.
+        let show_grip = self.view.settings.is_none() && size != Size::PetOnly && !self.prefs.menu_bar;
         // just the pet: clicks off the pet fall through to what's behind
         let watching = ((FIXED_CANVAS && !self.prefs.menu_bar) || size == Size::PetOnly) && self.shown && cfg!(target_os = "macos");
         if watching {
@@ -703,6 +791,10 @@ impl eframe::App for App {
             companion_next = companion_next.min(self.pet.next_frame(compact::provider_mood(&f, crate::screens::shown(&f))));
         }
         self.apply(&ctx, actions);
+        self.keyboard_scale(&ctx);
+        if show_grip {
+            self.resize_grip(ui, &ctx, card);
+        }
         if self.effects.animating() {
             ctx.request_repaint_after(Duration::from_millis(60));
         }
