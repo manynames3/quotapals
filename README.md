@@ -9,6 +9,24 @@ Stop interrupting your work to check whether Claude Code or Codex is about to ru
 </p>
 <p align="center"><sub>App screenshot with illustrative test readings—not a live account.</sub></p>
 
+## Why I Built QuotaPals
+
+I use Codex and Claude Code heavily, and I kept running into two frustrations.
+
+**First, I wanted to see my usage limits without having to look for them.**
+
+CodexBar is a solid tool, but checking my 5-hour and weekly limits requires extra clicks. I wanted something that could sit in the corner of my screen and tell me, at a glance, exactly how much usage I have left and when it resets.
+
+**Second, I was tired of losing momentum when I hit a usage limit.**
+
+I had previously built [CodexReset](https://github.com/boyso/codex-reset) to solve that problem. When a session stops because you've reached your limit, it can automatically resume once your usage resets. No babysitting. No coming back hours later just to type "continue."
+
+**QuotaPals combines both ideas into one simple desktop companion.**
+
+See your limits. Know when they reset. Automatically pick up where you left off.
+
+**Less checking. Less waiting. More building.**
+
 ## Know your limits. Keep your momentum.
 
 You have enough to think about when you're building with AI. Tracking two different rate-limit schedules shouldn't be another job.
