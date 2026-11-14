@@ -30,11 +30,40 @@ pub struct Tray {
     events: Arc<Mutex<Vec<TrayEvent>>>,
 }
 
+// Keep informational rows disabled (so they cannot be mistaken for actions),
+// but give them the system's adaptive primary text color. AppKit otherwise
+// fades disabled menu labels until they're hard to read over a translucent menu.
+#[cfg(target_os = "macos")]
+fn readable_menu_title(text: &str) -> objc2::rc::Retained<objc2_foundation::NSAttributedString> {
+    use objc2::rc::Retained;
+    use objc2::runtime::AnyObject;
+    use objc2_app_kit::{NSColor, NSForegroundColorAttributeName};
+    use objc2_foundation::{NSAttributedString, NSAttributedStringKey, NSDictionary, NSString};
+
+    let string = NSString::from_str(text);
+    let color = NSColor::labelColor();
+    // SAFETY: NSColor is an Objective-C object and can be erased to AnyObject.
+    let color: Retained<AnyObject> = unsafe { Retained::cast_unchecked(color) };
+    // SAFETY: AppKit exposes this stable global key for attributed-string colors.
+    let foreground_key = unsafe { NSForegroundColorAttributeName };
+    let attributes = NSDictionary::<NSAttributedStringKey, AnyObject>::from_slices(&[foreground_key], &[&color]);
+    // SAFETY: the dictionary contains the valid NSForegroundColor attribute
+    // and a retained NSColor value for the full lifetime of the initializer.
+    unsafe { NSAttributedString::new_with_attributes(&string, &attributes) }
+}
+
+fn status_item(text: &str) -> MenuItem {
+    let item = MenuItem::new(text, false, None);
+    #[cfg(target_os = "macos")]
+    item.set_attributed_title(Some(&readable_menu_title(text)));
+    item
+}
+
 // the menu: the limit lines (read-only), then the actions
 fn build_menu(lines: &[String], open: &MenuItem, floating: &MenuItem, quit: &MenuItem) -> Option<Menu> {
     let menu = Menu::new();
     for l in lines {
-        menu.append(&MenuItem::new(l, false, None)).ok()?;
+        menu.append(&status_item(l)).ok()?;
     }
     if !lines.is_empty() {
         menu.append(&PredefinedMenuItem::separator()).ok()?;
