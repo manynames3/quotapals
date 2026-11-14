@@ -1,7 +1,7 @@
 // no console window behind the widget on Windows
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
-// Clauddy, native: a transparent, always-on-top widget with the pet and the
+// TokenRunway, native: a transparent, always-on-top widget with the pet and the
 // account's real usage. CLAUDDY_STATE pins a mood (idle | working | fire |
 // tired | sleeping) for development.
 
@@ -31,7 +31,7 @@ mod usage;
 mod voice;
 
 fn main() -> eframe::Result {
-    // `clauddy --usage`: print one reading of the local logs as JSON (dev aid)
+    // `tokenrunway --usage`: print one reading of the local logs as JSON (dev aid)
     if std::env::args().any(|a| a == "--usage") {
         let path = std::env::home_dir().unwrap_or_default().join(".claude-usage-monitor/config.json");
         let cfg: usage::Config = std::fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
@@ -45,14 +45,14 @@ fn main() -> eframe::Result {
         println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
         return Ok(());
     }
-    // `clauddy --codex`: one reading of Codex's logs as JSON (dev aid; no live read)
+    // `tokenrunway --codex`: one reading of Codex's logs as JSON (dev aid; no live read)
     if std::env::args().any(|a| a == "--codex") {
         let mut c = codex::Codex::new(None);
         let u = c.get_usage(usage::now_ms());
         println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
         return Ok(());
     }
-    // `clauddy --cursor`: Cursor's sign-in, limits and activity as JSON (dev aid)
+    // `tokenrunway --cursor`: Cursor's sign-in, limits and activity as JSON (dev aid)
     if std::env::args().any(|a| a == "--cursor") {
         let mut c = cursor::Cursor::new();
         eprintln!("detect {:?}", c.detect());
@@ -61,20 +61,20 @@ fn main() -> eframe::Result {
         println!("{}", serde_json::to_string_pretty(&u).unwrap_or_default());
         return Ok(());
     }
-    // `clauddy --say`: play a line's chiptune blips (dev aid: checks the sound)
+    // `tokenrunway --say`: play a line's chiptune blips (dev aid: checks the sound)
     if std::env::args().any(|a| a == "--say") {
         voice::play("Getting warm, 91% already.", voice::Tone::Fire);
         std::thread::sleep(std::time::Duration::from_secs(3));
         return Ok(());
     }
-    // `clauddy --notify`: send a sample alert (dev aid: checks permission and look)
+    // `tokenrunway --notify`: send a sample alert (dev aid: checks permission and look)
     if std::env::args().any(|a| a == "--notify") {
         alerts::ask_permission();
         alerts::send(&alerts::Note { title: "Session at 82%".into(), body: "2h 39m left · resets 6:50 PM".into(), sound: false });
         std::thread::sleep(std::time::Duration::from_secs(3)); // let it be delivered before exiting
         return Ok(());
     }
-    // `clauddy --limits`: the active account's real % and identity (dev aid)
+    // `tokenrunway --limits`: the active account's real % and identity (dev aid)
     if std::env::args().any(|a| a == "--limits") {
         let accts = accounts::Accounts::new(None);
         let id = accts.active_id();
@@ -92,7 +92,7 @@ fn main() -> eframe::Result {
     }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("QuotaPals")
+            .with_title("TokenRunway")
             .with_inner_size(app::initial_size())
             // living in the menu bar, the panel waits for a click on the icon
             .with_visible(!prefs::Prefs::load().menu_bar)
@@ -103,5 +103,5 @@ fn main() -> eframe::Result {
             .with_resizable(false),
         ..Default::default()
     };
-    eframe::run_native("QuotaPals", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
+    eframe::run_native("TokenRunway", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
 }

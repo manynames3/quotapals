@@ -18,7 +18,7 @@ fn custom_build() -> bool {
     #[cfg(target_os = "macos")]
     {
         use objc2_foundation::NSBundle;
-        NSBundle::mainBundle().bundleIdentifier().is_some_and(|id| id.to_string() == "dev.manynames3.quotapals")
+        NSBundle::mainBundle().bundleIdentifier().is_some_and(|id| id.to_string() == "dev.manynames3.tokenrunway")
     }
     #[cfg(not(target_os = "macos"))]
     {

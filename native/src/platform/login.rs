@@ -2,7 +2,7 @@
 // development build (its own bundle id, or a binary under target/) never
 // adds itself.
 
-/// Make sure Clauddy starts with the session. Quiet on any failure.
+/// Make sure TokenRunway starts with the session. Quiet on any failure.
 pub fn open_at_login() {
     let Ok(exe) = std::env::current_exe() else { return };
     if exe.components().any(|c| c.as_os_str() == "target") {
@@ -14,7 +14,7 @@ pub fn open_at_login() {
     {
         // the per-user Run key: no admin, and Settings > Apps > Startup lists it
         let _ = std::process::Command::new("reg")
-            .args(["add", r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "/v", "Clauddy", "/t", "REG_SZ", "/d"])
+            .args(["add", r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "/v", "TokenRunway", "/t", "REG_SZ", "/d"])
             .arg(format!("\"{}\"", exe.display()))
             .arg("/f")
             .status();
@@ -27,10 +27,10 @@ pub fn open_at_login() {
             .unwrap_or_else(|| std::env::home_dir().unwrap_or_default().join(".config"))
             .join("autostart");
         let entry = format!(
-            "[Desktop Entry]\nType=Application\nName=Clauddy\nComment=A cute pixel-art desktop pet that tracks your Claude Code usage\nExec=\"{}\"\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+            "[Desktop Entry]\nType=Application\nName=TokenRunway\nComment=A cute pixel-art desktop pet that tracks your Claude Code usage\nExec=\"{}\"\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
             exe.display()
         );
-        let file = dir.join("clauddy.desktop");
+        let file = dir.join("tokenrunway.desktop");
         if std::fs::read_to_string(&file).ok().as_deref() != Some(entry.as_str()) {
             let _ = std::fs::create_dir_all(&dir);
             let _ = std::fs::write(file, entry);
@@ -45,7 +45,7 @@ mod mac {
 
     pub fn register() {
         // Register the official or customized installed app, never a dev bundle.
-        if NSBundle::mainBundle().bundleIdentifier().is_none_or(|id| !matches!(id.to_string().as_str(), "app.clauddy" | "dev.manynames3.quotapals")) {
+        if NSBundle::mainBundle().bundleIdentifier().is_none_or(|id| !matches!(id.to_string().as_str(), "app.clauddy" | "dev.manynames3.tokenrunway")) {
             return;
         }
         // SAFETY: plain calls on the app's own login-item service

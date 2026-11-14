@@ -685,7 +685,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "clauddy"
+name = "tokenrunway"
 version = "0.1.0"
 dependencies = [
  "base64",

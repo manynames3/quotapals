@@ -5,9 +5,9 @@
 #
 #   native/scripts/package.sh 2.0.0
 #
-#   macOS    dist/Clauddy-<v>-arm64-mac.zip     Clauddy.app (app.clauddy, ad-hoc signed)
-#   Windows  dist/Clauddy-<v>-win-x64.zip       Clauddy.exe
-#   Linux    dist/Clauddy-<v>-linux-x64.tar.gz  Clauddy/clauddy + its icon
+#   macOS    dist/TokenRunway-<v>-arm64-mac.zip     TokenRunway.app (dev.manynames3.tokenrunway, ad-hoc signed)
+#   Windows  dist/TokenRunway-<v>-win-x64.zip       TokenRunway.exe
+#   Linux    dist/TokenRunway-<v>-linux-x64.tar.gz  TokenRunway/tokenrunway + its icon
 set -euo pipefail
 VERSION="${1:?usage: native/scripts/package.sh <version>}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -23,21 +23,21 @@ trap 'rm -rf "$STAGE"' EXIT
 
 case "$(uname -s)" in
   Darwin)
-    BUNDLE_ID=app.clauddy scripts/bundle.sh
+    BUNDLE_ID=dev.manynames3.tokenrunway scripts/bundle.sh
     # ditto keeps the bundle's signature and attributes, which zip would not
-    ditto -c -k --keepParent target/Clauddy.app "$DIST/Clauddy-$VERSION-arm64-mac.zip"
+    ditto -c -k --keepParent target/TokenRunway.app "$DIST/TokenRunway-$VERSION-arm64-mac.zip"
     ;;
   Linux)
     cargo build --release
-    mkdir -p "$STAGE/Clauddy"
-    cp target/release/clauddy "$STAGE/Clauddy/clauddy"
-    cp assets/icon.png "$STAGE/Clauddy/clauddy.png"
-    tar -C "$STAGE" -czf "$DIST/Clauddy-$VERSION-linux-x64.tar.gz" Clauddy
+    mkdir -p "$STAGE/TokenRunway"
+    cp target/release/tokenrunway "$STAGE/TokenRunway/tokenrunway"
+    cp assets/icon.png "$STAGE/TokenRunway/tokenrunway.png"
+    tar -C "$STAGE" -czf "$DIST/TokenRunway-$VERSION-linux-x64.tar.gz" TokenRunway
     ;;
   MINGW* | MSYS* | CYGWIN*)
     cargo build --release
-    cp target/release/clauddy.exe "$STAGE/Clauddy.exe"
-    (cd "$STAGE" && 7z a -tzip -bso0 "$DIST/Clauddy-$VERSION-win-x64.zip" Clauddy.exe)
+    cp target/release/tokenrunway.exe "$STAGE/TokenRunway.exe"
+    (cd "$STAGE" && 7z a -tzip -bso0 "$DIST/TokenRunway-$VERSION-win-x64.zip" TokenRunway.exe)
     ;;
   *)
     echo "package.sh: no release artifact for $(uname -s)" >&2

@@ -1,4 +1,4 @@
-"""Reproducible original pixel costume collection for QuotaPals.
+"""Reproducible original pixel costume collection for TokenRunway.
 
 Generates Halloween, elf, reindeer, winter Codex sprites and a winter
 Claude costume, preserving existing sprites' poses and transparency.

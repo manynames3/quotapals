@@ -44,7 +44,7 @@ fn set_status(provider: &str, value: u8) {
 pub fn status_label(provider: &str) -> &'static str {
     match status_cell(provider).load(Ordering::Relaxed) {
         OFF => "Off",
-        DELEGATED => "CodexReset active; QuotaPals paused",
+        DELEGATED => "CodexReset active; TokenRunway paused",
         WAITING_DATA => "Waiting for fresh quota reading",
         NO_PAUSED => "No eligible usage-paused chats",
         WAITING_RESET => "Waiting for confirmed reset",
@@ -322,7 +322,7 @@ fn other_resumer_running() -> bool {
             return false;
         }
         // If CodexReset also has automatic resumption enabled, don't race it.
-        // When its toggle is off, it is safe to use QuotaPals instead.
+        // When its toggle is off, it is safe to use TokenRunway instead.
         let enabled = Command::new("/usr/bin/defaults")
             .args(["read", "com.codexreset.CodexReset", "autoContinue"])
             .output()

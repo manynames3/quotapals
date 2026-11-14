@@ -122,7 +122,7 @@ pub fn draw(ui: &mut Ui, ctx: &Context, f: &Frame, tab: Tab, draft: &Prefs, save
 
     // the version, and the update check
     let vy = y + 12.0 + 6.0;
-    text_mid(&p, left, vy, Align::Min, &format!("QuotaPals v{}", env!("CARGO_PKG_VERSION")), text::CAPTION, color::FG_MUTED);
+    text_mid(&p, left, vy, Align::Min, &format!("TokenRunway v{}", env!("CARGO_PKG_VERSION")), text::CAPTION, color::FG_MUTED);
     use crate::updates::Update;
     let (label, act) = match &f.update {
         Update::Idle | Update::UpToDate | Update::Failed(_) => (

@@ -20,7 +20,7 @@ cargo fmt                                 # format (native/rustfmt.toml)
 cargo clippy --release --all-targets -- -D warnings   # lint; pull requests fail on any warning
 cargo test --release                      # unit tests + snapshot gallery
 UPDATE_SNAPSHOTS=1 cargo test --release   # rewrite the gallery after an intended visual change
-scripts/bundle.sh                         # native/target/Clauddy.app (macOS, app.clauddy.dev)
+scripts/bundle.sh                         # native/target/TokenRunway.app (macOS, dev.manynames3.tokenrunway.dev)
 scripts/package.sh <version>              # the release artifact for this OS, into dist/
 
 # at the root, for the launcher
@@ -40,7 +40,7 @@ bun run test       # the launcher's test
 - **Screens** draw only from the `Frame` they get and return `Action`s for the app to apply. They never read the poller, the disk or the clock on their own (`format::now` is pinned in tests).
 - **Snapshots**: `src/screens/snapshots.rs` renders every screen state from fixtures into `native/tests/snapshots/*.png`, and the tests fail when a render drifts. They are the gallery: a new state gets a new case. After an intended visual change, `UPDATE_SNAPSHOTS=1 cargo test --release` rewrites them; review the PNGs before committing.
 - **Icon**: `native/assets/icon.png` (1024 px, on the macOS template, generated in the pet's art style); `native/scripts/icon.sh` turns it into `native/assets/icon.icns`.
-- **Bundle**: `native/scripts/bundle.sh` builds `native/target/Clauddy.app` (Info.plist, icon, no Dock icon, ad-hoc signed as `app.clauddy.dev`, so a development build never mixes with the installed app). `native/scripts/package.sh <version>` builds what a release ships on the current OS, as `app.clauddy`. Notifications go through UNUserNotificationCenter: at launch the app comes to the front and asks for permission, which macOS shows as its Allow / Don't Allow prompt until answered. The loose binary can't notify, so test them with `open native/target/Clauddy.app`. Never send through NSUserNotificationCenter as well: macOS refuses a bundle id that mixes the two APIs.
+- **Bundle**: `native/scripts/bundle.sh` builds `native/target/TokenRunway.app` (Info.plist, icon, no Dock icon, ad-hoc signed as `dev.manynames3.tokenrunway.dev`, so a development build never mixes with the installed app). `native/scripts/package.sh <version>` builds what a release ships on the current OS, as `dev.manynames3.tokenrunway`. Notifications go through UNUserNotificationCenter: at launch the app comes to the front and asks for permission, which macOS shows as its Allow / Don't Allow prompt until answered. The loose binary can't notify, so test them with `open native/target/TokenRunway.app`. Never send through NSUserNotificationCenter as well: macOS refuses a bundle id that mixes the two APIs.
 - **Art**: new pet art is generated (Codex `gpt-6-astra`), not drawn in code; Clauddy stays square and blocky like the classic sprite.
 
 ## Tests

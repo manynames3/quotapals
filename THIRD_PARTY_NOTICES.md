@@ -6,7 +6,7 @@
 
 ## CodexReset — auto-continue workflow inspiration
 
-[CodexReset](https://github.com/boyso/codex-reset), copyright (c) 2026 BOYSO, provided the original rate-limit pause detection and recovery workflow that informed QuotaPals' Rust auto-continue implementation. Its own app-server and GUI automation engine have not been copied.
+[CodexReset](https://github.com/boyso/codex-reset), copyright (c) 2026 BOYSO, provided the original rate-limit pause detection and recovery workflow that informed TokenRunway' Rust auto-continue implementation. Its own app-server and GUI automation engine have not been copied.
 
 CodexReset is available under the MIT License:
 
@@ -32,4 +32,4 @@ SOFTWARE.
 
 ## REA
 
-[REA](https://github.com/morluto/rea) was used to analyze Clauddy's JavaScript launcher during development. No REA runtime code is bundled into QuotaPals.
+[REA](https://github.com/morluto/rea) was used to analyze Clauddy's JavaScript launcher during development. No REA runtime code is bundled into TokenRunway.
