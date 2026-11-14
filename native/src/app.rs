@@ -519,6 +519,57 @@ impl App {
             let (p, r) = ext(&c.api);
             lines.push(line("Cursor API", p, r));
         }
+        // Keep spending detail in the menu bar, never on the compact
+        // floating widget. This is the estimated API-equivalent value of
+        // locally observed tokens, not a cash charge or subscription credit.
+        if snap.usage.is_some() || snap.codex.is_some() {
+            let empty = "—".to_string();
+            let money = |cost: f64, tokens: u64, unpriced: u64| -> String {
+                if tokens == 0 {
+                    return "$0.00".into();
+                }
+                if cost == 0.0 && unpriced > 0 {
+                    return "unpriced".into();
+                }
+                crate::spend::amount(cost, unpriced)
+            };
+            let claude = |period: usize| {
+                snap.usage
+                    .as_ref()
+                    .map(|u| {
+                        let cost = match period {
+                            0 => u.cost_today,
+                            1 => u.cost_7d,
+                            _ => u.cost_30d,
+                        };
+                        money(cost, if period == 0 { u.today_tokens } else { u.month_tokens }, u.unpriced_tokens_30d)
+                    })
+                    .unwrap_or_else(|| empty.clone())
+            };
+            let codex = |period: usize| {
+                snap.codex
+                    .as_ref()
+                    .map(|c| {
+                        let cost = match period {
+                            0 => c.cost_today,
+                            1 => c.cost_7d,
+                            _ => c.cost_30d,
+                        };
+                        money(cost, if period == 0 { c.tokens_today } else { c.month_tokens }, c.unpriced_tokens_30d)
+                    })
+                    .unwrap_or_else(|| empty.clone())
+            };
+            lines.push("Estimated API value · local tokens".into());
+            for (period, label) in ["Today", "Last 7 days", "Last 30 days"].iter().enumerate() {
+                lines.push(format!("{label} · Claude {} · Codex {}", claude(period), codex(period)));
+            }
+            let excluded = snap.usage.as_ref().map_or(0, |u| u.unpriced_tokens_30d) + snap.codex.as_ref().map_or(0, |c| c.unpriced_tokens_30d);
+            if excluded > 0 {
+                lines.push(format!("Partial estimate · {excluded} tokens lack model pricing"));
+            }
+            lines.push("Not subscription spend or purchased credits".into());
+        }
+        lines.push("Remaining reset credits · not reported by providers".into());
         tray.set_lines(lines);
         let events = tray.take_events();
         let icon = tray.rect();

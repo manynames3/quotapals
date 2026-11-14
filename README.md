@@ -42,6 +42,14 @@ TokenRunway shows you **what you've used and when it resets**, without opening a
 
 **No guesswork:** unavailable or expired readings appear as unavailable, never as a fake 0%. Percentages show **usage consumed**, not percentage remaining. “Runway” refers to your remaining usage headroom and time to reset, not a literal token balance.
 
+## Estimated API value in the macOS menu bar
+
+With **Bar** or **Both** enabled under **Settings → Look**, click the menu-bar icon to see local-log **API-equivalent token value** for **today, the last seven days, and the last 30 days**, separated into Claude Code and Codex. The compact floating widget remains unchanged.
+
+Values are calculated from the locally observed per-model input, output, and cache-token counts using a bundled November 2026 pricing reference from the [Anthropic API](https://platform.claude.com/docs/en/about-claude/pricing) and [OpenAI API](https://developers.openai.com/api/docs/pricing). They are **not subscription bills, purchased credits, actual charges, or tokens available to spend**. Unknown-model usage is explicitly marked as unpriced/partial, not silently treated as free. Special context and service-tier pricing may not be captured. Cloud activity without corresponding local logs is not counted.
+
+**Reset credits remaining:** provider quota endpoints do not expose reliable transferable reset-credit balances to this app. TokenRunway shows observed historical reset counts instead and labels the remaining balance as unavailable rather than guessing.
+
 ## Two characters. Two independent moods.
 
 The orange Clauddy might be asleep while the Codex robot is hard at work. Each reacts to its own activity and whichever usage window is closest to its limit—even when the *weekly* limit is tighter than the 5-hour one.
@@ -97,7 +105,7 @@ In the compact widget, click the **gear next to X**, open **Resume**, and turn o
 
 **Already running CodexReset?** If its auto-continue is enabled, TokenRunway **defers Codex recovery** to avoid duplicate turns. CodexReset only resumes conversations that are both **selected** and **currently usage-paused**; if no selected conversation qualifies, neither app will resume anything. Select the intended paused conversations in CodexReset, or disable its auto-continue to hand control to TokenRunway. Do not enable both engines for the same conversations. TokenRunway's **Settings → Resume** tab now shows the current reason for waiting. CodexReset's chat-selection and app-server/GUI fallback features are **not yet replicated** here.
 
-The local activity log is stored at `~/.claude-usage-monitor/auto-continue.log`. Automated turns can consume usage and, within the CLI's normal permissions, make project changes. This feature is new and should be monitored until validated against a real reset.
+The local activity log is stored at `~/.claude-usage-monitor/auto-continue.log`; private CLI output for attempted resumes is saved under `~/.claude-usage-monitor/auto-continue-runs/`. Automated turns can consume usage and, within the CLI's normal permissions, make project changes. TokenRunway recognizes structured Claude 429 quota errors and their provider-announced reset times, then requires a fresh below-limit account reading and a short grace period for Claude Desktop's own auto-continue before dispatching anything. It avoids automatically restarting subagent sidechains that could still be controlled by a parent. **A failed background task is not guaranteed to resume**, and a successful CLI exit does not prove the original project is finished.
 
 ## Get running on macOS
 
@@ -106,7 +114,7 @@ This fork is currently **source-install only**: no downloadable binary release o
 **You'll need:** macOS, [Rust/Cargo](https://rustup.rs/), and your existing Claude Code and/or Codex installation.
 
 ```bash
-git clone https://github.com/manynames3/quotapals.git tokenrunway
+git clone https://github.com/manynames3/tokenrunway.git
 cd tokenrunway
 ./scripts/install-tokenrunway-macos.sh
 ```

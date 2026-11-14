@@ -444,6 +444,11 @@ pub(super) fn with_codex(mut snap: Snapshot, working: bool) -> Snapshot {
         by_project: vec![l("clauddy", 52_000_000), l("api", 36_000_000)],
         days30: (0..30u64).map(|i| (i * 13 % 7) * 4_000_000).collect(),
         month_tokens: 380_000_000,
+        cost_today: 0.0,
+        cost_7d: 0.0,
+        cost_30d: 0.0,
+        priced_tokens_30d: 0,
+        unpriced_tokens_30d: 0,
     });
     snap.codex_found = Some((true, Some("plus".into())));
     snap

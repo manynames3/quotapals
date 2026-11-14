@@ -78,6 +78,12 @@ pub struct CodexUsage {
     pub by_project: Vec<Labeled>,
     pub days30: Vec<u64>,
     pub month_tokens: u64,
+    /// Local-log API-equivalent value estimates, not actual subscription spend.
+    pub cost_today: f64,
+    pub cost_7d: f64,
+    pub cost_30d: f64,
+    pub priced_tokens_30d: u64,
+    pub unpriced_tokens_30d: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -86,6 +92,7 @@ struct Event {
     tokens: u64,
     model: Option<String>,
     cwd: Option<String>,
+    cost: Option<f64>,
 }
 
 #[derive(Default)]
@@ -229,7 +236,14 @@ fn ingest_line(sum: &mut Summary, line: &[u8]) {
     if let Some(total) = p.pointer("/info/total_token_usage/total_tokens").and_then(Value::as_u64)
         && total > sum.last_total
     {
-        sum.events.push(Event { ts, tokens: total - sum.last_total, model: sum.model.clone(), cwd: sum.cwd.clone() });
+        // last_token_usage reports the tokens spent since the preceding event;
+        // total_token_usage is cumulative and used only to establish a new delta.
+        let u = p.pointer("/info/last_token_usage");
+        let read = |key| u.and_then(|v| v.get(key)).and_then(Value::as_u64).unwrap_or(0);
+        let cost = u.and_then(|_| sum.model.as_deref()).and_then(|model| {
+            crate::spend::codex(model, read("input_tokens"), read("output_tokens"), read("cached_input_tokens"), read("cache_write_input_tokens"))
+        });
+        sum.events.push(Event { ts, tokens: total - sum.last_total, model: sum.model.clone(), cwd: sum.cwd.clone(), cost });
         sum.last_total = total;
     }
     if let Some(lim) = p.get("rate_limits").and_then(|rl| limits_of(rl, ts))
@@ -432,6 +446,9 @@ impl Codex {
         let mut limits: Option<Limits> = None;
         let mut latest: Option<i64> = None;
         let (mut today, mut h5, mut week, mut month) = (0u64, 0u64, 0u64, 0u64);
+        let (mut cost_today, mut cost_7d, mut cost_30d) = (0.0f64, 0.0, 0.0);
+        let (mut priced_tokens_30d, mut unpriced_tokens_30d) = (0u64, 0u64);
+        let start7 = now - WEEK;
         let mut days30 = vec![0u64; DAYS];
         let (mut by_model, mut model_order) = (HashMap::new(), vec![]);
         let (mut by_project, mut project_order) = (HashMap::new(), vec![]);
@@ -461,6 +478,18 @@ impl Codex {
                     continue;
                 }
                 month += e.tokens;
+                if let Some(usd) = e.cost {
+                    cost_30d += usd;
+                    priced_tokens_30d += e.tokens;
+                    if e.ts >= start7 {
+                        cost_7d += usd;
+                    }
+                    if e.ts >= start_of_day {
+                        cost_today += usd;
+                    }
+                } else {
+                    unpriced_tokens_30d += e.tokens;
+                }
                 days30[(((e.ts - start30) / DAY) as usize).min(DAYS - 1)] += e.tokens;
                 if e.ts >= start_of_day {
                     today += e.tokens;
@@ -508,6 +537,11 @@ impl Codex {
             by_project,
             days30,
             month_tokens: month,
+            cost_today,
+            cost_7d,
+            cost_30d,
+            priced_tokens_30d,
+            unpriced_tokens_30d,
         })
     }
 }

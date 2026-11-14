@@ -80,6 +80,12 @@ pub struct Usage {
     pub by_project: Vec<Labeled>,
     pub days30: Vec<u64>,
     pub month_tokens: u64,
+    /// Local-log API-equivalent value estimates in USD (not actual charges).
+    pub cost_today: f64,
+    pub cost_7d: f64,
+    pub cost_30d: f64,
+    pub priced_tokens_30d: u64,
+    pub unpriced_tokens_30d: u64,
     pub tokens_per_min: u64,
     pub active: bool,
     pub sleeping: bool,
@@ -101,6 +107,11 @@ impl Usage {
             by_project: vec![],
             days30: vec![0; DAYS],
             month_tokens: 0,
+            cost_today: 0.0,
+            cost_7d: 0.0,
+            cost_30d: 0.0,
+            priced_tokens_30d: 0,
+            unpriced_tokens_30d: 0,
             tokens_per_min: 0,
             active: false,
             sleeping: false,
@@ -116,6 +127,7 @@ struct Entry {
     ts: i64,
     model: Option<String>,
     tokens: u64,
+    cost: Option<f64>,
     key: String,
 }
 
@@ -204,6 +216,9 @@ impl Reader {
 
         let mut seen = HashSet::new();
         let (mut today, mut week, mut month, mut last5m) = (0u64, 0u64, 0u64, 0u64);
+        let (mut cost_today, mut cost_7d, mut cost_30d) = (0.0f64, 0.0, 0.0);
+        let (mut priced_tokens_30d, mut unpriced_tokens_30d) = (0u64, 0u64);
+        let start7 = now - 7 * DAY_MS;
         let mut by_model = Tally::default();
         let mut by_project = Tally::default();
         let mut days30 = vec![0u64; DAYS];
@@ -221,6 +236,18 @@ impl Reader {
                 }
                 let t = e.tokens;
                 month += t;
+                if let Some(usd) = e.cost {
+                    cost_30d += usd;
+                    priced_tokens_30d += t;
+                    if e.ts >= start7 {
+                        cost_7d += usd;
+                    }
+                    if e.ts >= today_ms {
+                        cost_today += usd;
+                    }
+                } else {
+                    unpriced_tokens_30d += t;
+                }
                 let idx = ((e.ts - start30) / DAY_MS).clamp(0, DAYS as i64 - 1) as usize;
                 days30[idx] += t;
                 if e.ts >= week_start {
@@ -306,6 +333,11 @@ impl Reader {
             by_project,
             days30,
             month_tokens: month,
+            cost_today,
+            cost_7d,
+            cost_30d,
+            priced_tokens_30d,
+            unpriced_tokens_30d,
             tokens_per_min: (last5m as f64 / 5.0).round() as u64,
             active,
             sleeping,
@@ -561,6 +593,13 @@ struct RawUsage {
     output_tokens: Option<u64>,
     cache_read_input_tokens: Option<u64>,
     cache_creation_input_tokens: Option<u64>,
+    cache_creation: Option<RawCacheCreation>,
+}
+
+#[derive(Deserialize)]
+struct RawCacheCreation {
+    ephemeral_5m_input_tokens: Option<u64>,
+    ephemeral_1h_input_tokens: Option<u64>,
 }
 
 fn nonempty<'a>(s: &'a Option<Cow<'a, str>>) -> Option<&'a str> {
@@ -592,8 +631,15 @@ fn ingest_line(entries: &mut Vec<Entry>, line: &[u8]) {
         return;
     }
     let tokens = [u.input_tokens, u.output_tokens, u.cache_read_input_tokens, u.cache_creation_input_tokens].iter().map(|t| t.unwrap_or(0)).sum();
+    let total_write = u.cache_creation_input_tokens.unwrap_or(0);
+    let write_1h = u.cache_creation.as_ref().and_then(|c| c.ephemeral_1h_input_tokens).unwrap_or(0);
+    let write_5m_reported = u.cache_creation.as_ref().and_then(|c| c.ephemeral_5m_input_tokens).unwrap_or(0);
+    let write_5m = total_write.saturating_sub(write_1h).max(write_5m_reported);
+    let cost = model.and_then(|name| {
+        crate::spend::claude(name, u.input_tokens.unwrap_or(0), u.output_tokens.unwrap_or(0), u.cache_read_input_tokens.unwrap_or(0), write_5m, write_1h)
+    });
     let req = nonempty(&obj.request_id).or_else(|| nonempty(&obj.uuid)).unwrap_or("");
-    entries.push(Entry { ts, model: model.map(str::to_string), tokens, key: format!("{}:{}", nonempty(&msg.id).unwrap_or(""), req) });
+    entries.push(Entry { ts, model: model.map(str::to_string), tokens, cost, key: format!("{}:{}", nonempty(&msg.id).unwrap_or(""), req) });
 }
 
 // Session logs only grow, and a long one passes 500 MB: a poll reads just the

@@ -24,6 +24,7 @@ mod prefs;
 mod reminders;
 mod reset_history;
 mod screens;
+mod spend;
 mod talk;
 mod ui;
 mod updates;

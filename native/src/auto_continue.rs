@@ -67,6 +67,8 @@ struct Paused {
     id: String,
     cwd: PathBuf,
     failed_ms: i64,
+    /// Exact reset timestamp reported by the quota error, if available.
+    reset_at_ms: Option<i64>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -211,7 +213,7 @@ fn codex_paused(now: i64) -> Vec<Paused> {
             if !cwd.is_dir() {
                 return None;
             }
-            Some(Paused { id, cwd, failed_ms })
+            Some(Paused { id, cwd, failed_ms, reset_at_ms: None })
         })
         .collect()
 }
@@ -221,9 +223,43 @@ fn quota_error(s: &str) -> bool {
     ["usage limit", "usage_limit", "rate limit", "rate_limit", "limit reached", "hit your limit", "reached your limit"].iter().any(|word| s.contains(word))
 }
 
+fn claude_error_reset_ms(v: &Value) -> Option<i64> {
+    let reset = v
+        .pointer("/apiErrorParams/rate_limit_info/resetsAt")
+        .and_then(Value::as_i64)
+        .or_else(|| v.pointer("/rateLimitInfo/resetsAt").and_then(Value::as_i64))?;
+    Some(if reset < 100_000_000_000 { reset.saturating_mul(1000) } else { reset })
+}
+
+/// A reset timestamp plus a *later* fresh, below-limit account reading
+/// avoids guessing from a missing 5-hour countdown or a stale 0%.
+fn claude_ready_after_error(session: &Paused, read_at_ms: i64, session_used: f64, week_used: f64, now: i64) -> bool {
+    let Some(reset) = session.reset_at_ms else { return false };
+    // Give Claude Desktop its own built-in auto-continue a short head start.
+    reset > session.failed_ms
+        && reset.saturating_add(90_000) <= now
+        && read_at_ms > reset
+        && [session_used, week_used].iter().all(|p| p.is_finite() && (0.0..100.0).contains(p))
+}
+
+fn claude_ready(snap: &Snapshot, session: &Paused, now: i64) -> bool {
+    let (Some(limits), Some(at)) = (&snap.limits, snap.limits_at) else { return false };
+    let age = at.elapsed().as_millis() as i64;
+    if !snap.connected || age > FRESH_READING_AGE {
+        return false;
+    }
+    claude_ready_after_error(session, now - age, limits.session.pct, limits.week.pct, now)
+}
+
 fn claude_error_entry(v: &Value) -> bool {
     let kind = v["type"].as_str().unwrap_or("");
     let subtype = v["subtype"].as_str().unwrap_or("");
+    // Recent Claude Desktop and Claude Code write structured 429 quota errors.
+    if v["isApiErrorMessage"].as_bool() == Some(true)
+        && (v["apiError"].as_str() == Some("usage_limit_reached") || (v["apiErrorStatus"].as_i64() == Some(429) && v["error"].as_str() == Some("rate_limit")))
+    {
+        return true;
+    }
     if kind == "rate_limit_event" {
         return matches!(v.pointer("/rateLimitInfo/status").and_then(Value::as_str), Some("rejected" | "limited"));
     }
@@ -255,6 +291,8 @@ fn claude_paused_file(path: &Path, now: i64) -> Option<Paused> {
     // A tail may start halfway through a UTF-8 character.
     let buf = String::from_utf8_lossy(&bytes);
     let mut quota_error_found = false;
+    let mut error_at = None;
+    let mut reset_at_ms = None;
     for raw in buf.lines().rev().take(180) {
         let Ok(v) = serde_json::from_str::<Value>(raw) else { continue };
         let kind = v["type"].as_str().unwrap_or("");
@@ -263,7 +301,17 @@ fn claude_paused_file(path: &Path, now: i64) -> Option<Paused> {
                 continue;
             }
             if claude_error_entry(&v) {
+                // A sidechain may still be managed by its parent session.
+                if v["isSidechain"].as_bool() == Some(true) {
+                    return None;
+                }
+                let ts = v["timestamp"].as_str().and_then(crate::usage::parse_date)?;
+                if !(0..MAX_FAILURE_AGE).contains(&(now - ts)) {
+                    return None;
+                }
                 quota_error_found = true;
+                error_at = Some(ts);
+                reset_at_ms = claude_error_reset_ms(&v);
             } else if kind == "user" || kind == "assistant" {
                 // The latest completed turn was not paused by the limit.
                 return None;
@@ -277,7 +325,7 @@ fn claude_paused_file(path: &Path, now: i64) -> Option<Paused> {
         if let Some(cwd) = v["cwd"].as_str().map(PathBuf::from)
             && cwd.is_dir()
         {
-            return Some(Paused { id, cwd, failed_ms });
+            return Some(Paused { id, cwd, failed_ms: error_at?, reset_at_ms });
         }
     }
     None
@@ -344,20 +392,46 @@ fn dispatch(provider: &str, session: &Paused) -> bool {
     let mut cmd = Command::new(bin);
     cmd.current_dir(&session.cwd).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     if provider == "claude" {
-        cmd.args(["-p", "--resume", &session.id, "--max-turns", "10", "--permission-mode", "dontAsk", "Continue where you left off."]);
+        cmd.args(["-p", "--resume", &session.id, "--max-turns", "20", "--permission-mode", "dontAsk",
+            "Continue the unfinished work after the usage reset. Inspect the current project state and retry only incomplete background tasks; do not repeat completed changes."]);
     } else {
         cmd.args(["exec", "--sandbox", "workspace-write", "-C"]);
         cmd.arg(&session.cwd);
         cmd.args(["resume", &session.id, "Continue where you left off."]);
     }
+    // Preserve private CLI output locally to distinguish permission, quota,
+    // and transport failures. Never echo conversation contents into app logs.
+    let run_dir = crate::auth::default_data_dir().join("auto-continue-runs");
+    let _ = fs::create_dir_all(&run_dir);
+    let log_path = run_dir.join(format!("{provider}-{}-{}.log", session.id, session.failed_ms));
+    let output = {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            fs::OpenOptions::new().create(true).truncate(true).write(true).mode(0o600).open(&log_path).ok()
+        }
+        #[cfg(not(unix))]
+        {
+            File::create(&log_path).ok()
+        }
+    };
+    if let Some(file) = output
+        && let Ok(stderr) = file.try_clone()
+    {
+        cmd.stdout(Stdio::from(file)).stderr(Stdio::from(stderr));
+    }
     match cmd.spawn() {
         Ok(mut child) => {
-            // A successful spawn is a dispatch, not proof the model completed;
-            // never retry automatically after a spawn to avoid double turns.
+            // A successful spawn is not proof the model completed; never
+            // retry automatically after dispatch to avoid duplicate turns.
+            let provider = provider.to_string();
             std::thread::spawn(move || match child.wait() {
-                Ok(status) if status.success() => note("Resume CLI exited successfully; result in the original chat is unverified"),
-                Ok(status) => note(&format!("Resume CLI exited with status {:?}; original chat may not have resumed", status.code())),
-                Err(e) => note(&format!("Could not observe resume CLI exit: {e}")),
+                Ok(status) if status.success() => note(&format!("{provider}: resume CLI exited successfully (original task completion unverified)")),
+                Ok(status) => {
+                    set_status(&provider, LAUNCH_FAILED);
+                    note(&format!("{provider}: resume CLI exited with status {:?}; inspect {}", status.code(), log_path.display()));
+                }
+                Err(e) => note(&format!("{provider}: could not observe resume CLI exit: {e}")),
             });
             true
         }
@@ -408,7 +482,10 @@ pub fn spawn(shared: Shared) {
                 if !enabled {
                     continue;
                 }
-                if windows.is_empty() {
+                // Claude's 5h reset timestamp can be absent even when the
+                // account API has a fresh 0%-used reading; its failed turn
+                // carries the exact provider reset timestamp instead.
+                if windows.is_empty() && provider != "claude" {
                     set_status(provider, WAITING_DATA);
                     continue;
                 }
@@ -423,7 +500,8 @@ pub fn spawn(shared: Shared) {
                     if sent >= LIMIT_PER_POLL {
                         break;
                     }
-                    if !recovered_after(&windows, session.failed_ms, now) {
+                    let ready = if provider == "claude" { claude_ready(&snap, &session, now) } else { recovered_after(&windows, session.failed_ms, now) };
+                    if !ready {
                         continue;
                     }
                     let key = format!("{provider}:{}:{}", session.id, session.failed_ms);
@@ -487,9 +565,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("11111111-2222-3333-4444-555555555555.jsonl");
         let cwd = dir.path().to_str().unwrap();
+        let ts = chrono::Utc::now().to_rfc3339();
         let entries = [
-            serde_json::json!({"type":"user","cwd":cwd,"message":"Please work on this project"}),
-            serde_json::json!({"type":"rate_limit_event","rateLimitInfo":{"status":"rejected"}}),
+            serde_json::json!({"type":"user","cwd":cwd,"message":"Please work on this project","timestamp":ts}),
+            serde_json::json!({"type":"rate_limit_event","timestamp":ts,"rateLimitInfo":{"status":"rejected"}}),
         ];
         std::fs::write(&path, entries.iter().map(|e| format!("{e}\n")).collect::<String>()).unwrap();
         let now = now_ms();
@@ -502,6 +581,27 @@ mod tests {
             .write_all(format!("{}\n", serde_json::json!({"type":"assistant","message":"All done"})).as_bytes())
             .unwrap();
         assert!(claude_paused_file(&path, now_ms()).is_none());
+    }
+
+    #[test]
+    fn structured_429_quota_error_and_reported_reset() {
+        let v = serde_json::json!({"type":"assistant","isApiErrorMessage":true,
+            "apiErrorStatus":429,"apiError":"usage_limit_reached","error":"rate_limit",
+            "apiErrorParams":{"rate_limit_info":{"resetsAt":1_794_627_600}}});
+        assert!(claude_error_entry(&v));
+        assert_eq!(claude_error_reset_ms(&v), Some(1_794_627_600_000));
+        assert!(!claude_error_entry(&serde_json::json!({"type":"assistant",
+            "isApiErrorMessage":true,"error":"authentication_failed"})));
+    }
+
+    #[test]
+    fn claude_requires_confirmed_reset_and_fresh_below_limit_account_reading() {
+        let n = 1_794_628_000_000i64;
+        let s = Paused { id: "11111111-2222-3333-4444-555555555555".into(), cwd: std::env::temp_dir(), failed_ms: n - 900_000, reset_at_ms: Some(n - 120_000) };
+        assert!(claude_ready_after_error(&s, n - 60_000, 0.0, 84.0, n));
+        assert!(!claude_ready_after_error(&s, n - 180_000, 0.0, 84.0, n));
+        assert!(!claude_ready_after_error(&s, n - 60_000, 0.0, 100.0, n));
+        assert!(!claude_ready_after_error(&Paused { reset_at_ms: None, ..s }, n - 60_000, 0.0, 84.0, n));
     }
 
     #[test]
