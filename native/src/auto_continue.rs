@@ -35,6 +35,7 @@ const NO_PAUSED: u8 = 4;
 const WAITING_RESET: u8 = 5;
 const SENT: u8 = 6;
 const LAUNCH_FAILED: u8 = 7;
+const PERMISSION_BLOCKED: u8 = 8;
 fn status_cell(provider: &str) -> &'static AtomicU8 {
     if provider == "codex" { &CODEX_STATUS } else { &CLAUDE_STATUS }
 }
@@ -50,6 +51,7 @@ pub fn status_label(provider: &str) -> &'static str {
         WAITING_RESET => "Waiting for confirmed reset",
         SENT => "Resume sent; completion unverified",
         LAUNCH_FAILED => "CLI failed; see local log",
+        PERMISSION_BLOCKED => "Resume was blocked by permissions; see local log",
         _ => "Checking local sessions...",
     }
 }
@@ -392,7 +394,11 @@ fn dispatch(provider: &str, session: &Paused) -> bool {
     let mut cmd = Command::new(bin);
     cmd.current_dir(&session.cwd).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     if provider == "claude" {
-        cmd.args(["-p", "--resume", &session.id, "--max-turns", "20", "--permission-mode", "dontAsk",
+        // Auto mode applies Claude Code's action classifier to unattended tool
+        // requests. Never bypass permissions. If something still requires
+        // manual approval, --permission-prompts none denies rather than hangs.
+        cmd.args(["-p", "--resume", &session.id, "--max-turns", "20",
+            "--permission-mode", "auto", "--permission-prompts", "none",
             "Continue the unfinished work after the usage reset. Inspect the current project state and retry only incomplete background tasks; do not repeat completed changes."]);
     } else {
         cmd.args(["exec", "--sandbox", "workspace-write", "-C"]);
@@ -426,7 +432,21 @@ fn dispatch(provider: &str, session: &Paused) -> bool {
             // retry automatically after dispatch to avoid duplicate turns.
             let provider = provider.to_string();
             std::thread::spawn(move || match child.wait() {
-                Ok(status) if status.success() => note(&format!("{provider}: resume CLI exited successfully (original task completion unverified)")),
+                Ok(status) if status.success() => {
+                    let blocked = fs::read_to_string(&log_path).ok().is_some_and(|text| {
+                        let text = text.to_ascii_lowercase();
+                        text.contains("permission mode blocked")
+                            || text.contains("blocked by permissions")
+                            || text.contains("permission request was denied")
+                            || text.contains("permissions denied")
+                    });
+                    if blocked {
+                        set_status(&provider, PERMISSION_BLOCKED);
+                        note(&format!("{provider}: CLI exited successfully but its report says permissions blocked an action; inspect {}", log_path.display()));
+                    } else {
+                        note(&format!("{provider}: resume CLI exited successfully (original task completion unverified)"));
+                    }
+                }
                 Ok(status) => {
                     set_status(&provider, LAUNCH_FAILED);
                     note(&format!("{provider}: resume CLI exited with status {:?}; inspect {}", status.code(), log_path.display()));
@@ -496,6 +516,7 @@ pub fn spawn(shared: Shared) {
                 }
                 let mut sent = 0;
                 let mut eligible = 0;
+                let mut previously_issued = false;
                 for session in failures {
                     if sent >= LIMIT_PER_POLL {
                         break;
@@ -506,6 +527,7 @@ pub fn spawn(shared: Shared) {
                     }
                     let key = format!("{provider}:{}:{}", session.id, session.failed_ms);
                     if state.issued.contains(&key) {
+                        previously_issued = true;
                         continue;
                     }
                     eligible += 1;
@@ -521,16 +543,19 @@ pub fn spawn(shared: Shared) {
                         sent += 1;
                     }
                 }
-                set_status(
-                    provider,
-                    if sent > 0 {
-                        SENT
-                    } else if eligible > 0 {
-                        LAUNCH_FAILED
-                    } else {
-                        WAITING_RESET
-                    },
-                );
+                if sent > 0 {
+                    set_status(provider, SENT);
+                } else if eligible > 0 {
+                    set_status(provider, LAUNCH_FAILED);
+                } else if previously_issued {
+                    // Preserve a worker-reported failure instead of replacing
+                    // it with "Waiting for confirmed reset" on the next poll.
+                    if status_cell(provider).load(Ordering::Relaxed) != PERMISSION_BLOCKED {
+                        set_status(provider, SENT);
+                    }
+                } else {
+                    set_status(provider, WAITING_RESET);
+                }
             }
         }
     });

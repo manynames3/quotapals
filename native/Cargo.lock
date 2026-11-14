@@ -685,35 +685,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokenrunway"
-version = "0.2.0"
-dependencies = [
- "base64",
- "block2 0.6.2",
- "chrono",
- "eframe",
- "egui_kittest",
- "getrandom 0.4.3",
- "memchr",
- "notify-rust",
- "objc2 0.6.5",
- "objc2-app-kit 0.3.2",
- "objc2-core-graphics",
- "objc2-foundation 0.3.2",
- "objc2-service-management",
- "objc2-user-notifications 0.3.2",
- "png",
- "resvg",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "tray-icon",
- "ureq",
-]
-
-[[package]]
 name = "clipboard-win"
 version = "5.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4515,6 +4486,35 @@ name = "tinyvec"
 version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
+
+[[package]]
+name = "tokenrunway"
+version = "0.2.0"
+dependencies = [
+ "base64",
+ "block2 0.6.2",
+ "chrono",
+ "eframe",
+ "egui_kittest",
+ "getrandom 0.4.3",
+ "memchr",
+ "notify-rust",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-graphics",
+ "objc2-foundation 0.3.2",
+ "objc2-service-management",
+ "objc2-user-notifications 0.3.2",
+ "png",
+ "resvg",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tray-icon",
+ "ureq",
+]
 
 [[package]]
 name = "tokio"
